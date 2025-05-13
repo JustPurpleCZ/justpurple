@@ -2298,584 +2298,805 @@ function resetCardsFromPartyMode() {
     });
 }
 class RhythmGame {
-            constructor() {
-                this.score = 0;
-                this.combo = 0;
-                this.maxCombo = 0;
-                this.currentTrack = null;
-                this.isPlaying = false;
-                this.notes = [];
-                this.activeNotes = [];
-                this.noteSpeed = 600; // milliseconds from spawn to hit zone
-                this.keyMapping = {
-                    'd': 0,
-                    'f': 1,
-                    'j': 2,
-                    'k': 3
-                };
-                this.trackPositions = ['d', 'f', 'j', 'k'];
-                this.audio = null;
-                this.previewAudio = null;
-                this.noteMap = null;
-                this.startTime = 0;
-                this.originalCardSlots = new Map();
-                
-                this.bindEvents();
+    constructor() {
+        this.score = 0;
+        this.combo = 0;
+        this.maxCombo = 0;
+        this.currentTrack = null;
+        this.isPlaying = false;
+        this.notes = [];
+        this.activeNotes = [];
+        this.noteSpeed = 1500; // Increased from 800ms to 1500ms to give more time to see notes
+        this.keyMapping = {
+            'd': 0,
+            'f': 1,
+            'j': 2,
+            'k': 3
+        };
+        this.trackPositions = ['d', 'f', 'j', 'k'];
+        this.audio = null;
+        this.previewAudio = null;
+        this.noteMap = null;
+        this.startTime = 0;
+        this.originalCardSlots = new Map();
+        this.holdNotesActive = {};
+        
+        this.bindEvents();
+    }
+    
+    init() {
+        // Initialize track data
+        this.tracks = [
+            { id: 'medicine', name: 'Medicine', audio: 'party/music/medicine.mp3', preview: 'party/music/medicine.mp3', map: 'party/music/medicine.json' },
+            { id: 'track2', name: 'Track 2', audio: 'track2.mp3', preview: 'track2_preview.mp3', map: 'track2_map.json' },
+            { id: 'track3', name: 'Track 3', audio: 'track3.mp3', preview: 'track3_preview.mp3', map: 'track3_map.json' },
+            { id: 'track4', name: 'Track 4', audio: 'track4.mp3', preview: 'track4_preview.mp3', map: 'track4_map.json' },
+            { id: 'track5', name: 'Track 5', audio: 'track5.mp3', preview: 'track5_preview.mp3', map: 'track5_map.json' }
+        ];
+        
+        // Apply style enhancements
+        this.enhanceGameStyles();
+        
+        // Initialize game elements
+        this.initGameplayElements();
+        
+        // Update card content
+        this.updateCardContent();
+        
+        console.log("Rhythm game initialized");
+    }
+    
+    initGameplayElements() {
+        // Initialize timing zone and perfect zone to correct positions
+        const gameplayArea = document.querySelector('.gameplay-area');
+        if (gameplayArea) {
+            // Make timing zone more visible with a distinct color
+            const timingZone = document.querySelector('.timing-zone');
+            if (timingZone) {
+                timingZone.style.background = 'rgba(255, 255, 255, 0.3)';
+                timingZone.style.borderRadius = '5px';
+                timingZone.style.bottom = '50px'; // Ensure it's visible in the viewport
             }
             
-            init() {
-                // Initialize track data
-                this.tracks = [
-                    { id: 'medicine', name: 'Medicine', audio: 'party/music/medicine.mp3', preview: 'party/music/medicine.mp3', map: 'party/music/medicine.json' },
-                    { id: 'track2', name: 'Track 2', audio: 'track2.mp3', preview: 'track2_preview.mp3', map: 'track2_map.json' },
-                    { id: 'track3', name: 'Track 3', audio: 'track3.mp3', preview: 'track3_preview.mp3', map: 'track3_map.json' },
-                    { id: 'track4', name: 'Track 4', audio: 'track4.mp3', preview: 'track4_preview.mp3', map: 'track4_map.json' },
-                    { id: 'track5', name: 'Track 5', audio: 'track5.mp3', preview: 'track5_preview.mp3', map: 'track5_map.json' }
-                ];
-                
-                this.updateCardContent();
+            // Make perfect zone more visible
+            const perfectZone = document.querySelector('.perfect-zone');
+            if (perfectZone) {
+                perfectZone.style.background = 'rgba(0, 255, 0, 0.4)';
+                perfectZone.style.borderRadius = '5px';
+                perfectZone.style.bottom = '65px'; // Ensure it's above the timing zone
             }
-            
-            updateCardContent() {
-                const cards = document.querySelectorAll('.card');
-                cards.forEach((card, index) => {
-                    if (this.tracks[index]) {
-                        const track = this.tracks[index];
-                        const cardBack = card.querySelector('.card-back');
-                        cardBack.innerHTML = `
-                            <h3>${track.name}</h3>
-                            <img src="party/track/${track.id}.jpg" alt="${track.name}">
-                        `;
-                        card.dataset.trackId = track.id;
-                        
-                        // Remove all existing event listeners to prevent duplicates
-                        const clone = card.cloneNode(true);
-                        card.parentNode.replaceChild(clone, card);
-                        
-                        // Add hover events
-                        clone.addEventListener('mouseenter', () => this.playPreview(track));
-                        clone.addEventListener('mouseleave', () => this.stopPreview());
-                        
-                        // Add click event only once
-                        clone.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            this.startGame(clone, track);
-                        });
-                    }
+        }
+    }
+    
+    updateCardContent() {
+        const cards = document.querySelectorAll('.card');
+        cards.forEach((card, index) => {
+            if (this.tracks[index]) {
+                const track = this.tracks[index];
+                const cardBack = card.querySelector('.card-back');
+                cardBack.innerHTML = `
+                    <h3>${track.name}</h3>
+                    <img src="party/track/${track.id}.jpg" alt="${track.name}">
+                `;
+                card.dataset.trackId = track.id;
+                
+                // Remove all existing event listeners to prevent duplicates
+                const clone = card.cloneNode(true);
+                card.parentNode.replaceChild(clone, card);
+                
+                // Add hover events
+                clone.addEventListener('mouseenter', () => this.playPreview(track));
+                clone.addEventListener('mouseleave', () => this.stopPreview());
+                
+                // Add click event only once
+                clone.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.startGame(clone, track);
                 });
             }
-            
-            playPreview(track) {
-                if (this.isPlaying) return;
-                
-                this.stopPreview();
-                this.previewAudio = new Audio(track.preview);
-                this.previewAudio.volume = 0;
-                this.previewAudio.play();
-                
-                // Fade in
-                let volume = 0;
-                const fadeIn = setInterval(() => {
-                    volume += 0.1;
-                    if (volume >= 0.8) {
-                        volume = 0.8;
-                        clearInterval(fadeIn);
-                    }
-                    this.previewAudio.volume = volume;
-                }, 50);
+        });
+    }
+    
+    playPreview(track) {
+        if (this.isPlaying) return;
+        
+        this.stopPreview();
+        this.previewAudio = new Audio(track.preview);
+        this.previewAudio.volume = 0;
+        this.previewAudio.play();
+        
+        // Fade in
+        let volume = 0;
+        const fadeIn = setInterval(() => {
+            volume += 0.1;
+            if (volume >= 0.8) {
+                volume = 0.8;
+                clearInterval(fadeIn);
             }
-            
-            stopPreview() {
-                if (this.previewAudio) {
-                    const audio = this.previewAudio;
-                    let volume = audio.volume;
-                    const fadeOut = setInterval(() => {
-                        volume -= 0.1;
-                        if (volume <= 0) {
-                            volume = 0;
-                            clearInterval(fadeOut);
-                            audio.pause();
-                            audio.currentTime = 0;
-                        }
-                        audio.volume = volume;
-                    }, 50);
+            this.previewAudio.volume = volume;
+        }, 50);
+    }
+    
+    stopPreview() {
+        if (this.previewAudio) {
+            const audio = this.previewAudio;
+            let volume = audio.volume;
+            const fadeOut = setInterval(() => {
+                volume -= 0.1;
+                if (volume <= 0) {
+                    volume = 0;
+                    clearInterval(fadeOut);
+                    audio.pause();
+                    audio.currentTime = 0;
                 }
-            }
+                audio.volume = volume;
+            }, 50);
+        }
+    }
+    
+    async startGame(card, track) {
+        if (this.isPlaying) return;
+        
+        // Store original positions
+        const cards = document.querySelectorAll('.card');
+        cards.forEach((c, idx) => {
+            const slot = parseInt(c.getAttribute('data-slot'));
+            this.originalCardSlots.set(c, slot);
+        });
+        
+        this.currentTrack = track;
+        this.isPlaying = true;
+        this.score = 0;
+        this.combo = 0;
+        this.activeNotes = [];
+        this.holdNotesActive = {
+            'd': null,
+            'f': null,
+            'j': null,
+            'k': null
+        };
+        
+        // Load note map
+        try {
+            const response = await fetch(track.map);
+            this.noteMap = await response.json();
             
-            async startGame(card, track) {
-                if (this.isPlaying) return;
-                
-                // Store original positions
-                const cards = document.querySelectorAll('.card');
-                cards.forEach((c, idx) => {
-                    const slot = parseInt(c.getAttribute('data-slot'));
-                    this.originalCardSlots.set(c, slot);
-                });
-                
-                this.currentTrack = track;
-                this.isPlaying = true;
-                this.score = 0;
-                this.combo = 0;
-                this.activeNotes = [];
-                
-                // Load note map
-                try {
-                    const response = await fetch(track.map);
-                    this.noteMap = await response.json();
-                } catch (error) {
-                    console.error('Failed to load note map:', error);
-                    this.noteMap = { notes: [] };
-                }
-                
-                // Move selected card to position
-                this.moveTrackCard(card);
-                
-                // Transform other cards to letters
-                this.transformCardsToLetters(card);
-                
-                // Show gameplay UI
-                this.showGameplayUI();
-                
-                // Start countdown
-                await this.startCountdown();
-                
-                // Start the game
-                this.playTrack();
-            }
-            
-            moveTrackCard(card) {
-                const trackCard = document.getElementById('activeTrackCard');
-                const cardRect = card.getBoundingClientRect();
-                
-                // Copy content
-                trackCard.innerHTML = card.innerHTML;
-                
-                // Position and show
-                trackCard.style.display = 'block';
-                trackCard.style.left = `${cardRect.left}px`;
-                trackCard.style.top = `${cardRect.top}px`;
-                trackCard.style.width = `${cardRect.width}px`;
-                trackCard.style.height = `${cardRect.height}px`;
-                
-                // Animate to right position
-                setTimeout(() => {
-                    trackCard.style.transition = 'all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)';
-                    trackCard.style.left = '';
-                    trackCard.style.top = '';
-                    trackCard.style.width = '';
-                    trackCard.style.height = '';
-                    trackCard.classList.add('active');
-                }, 50);
-                
-                // Hide original card
-                card.style.opacity = '0';
-            }
-            
-            transformCardsToLetters(selectedCard) {
-                const cards = document.querySelectorAll('.card');
-                const letters = ['D', 'F', 'J', 'K'];
-                let letterIndex = 0;
-                
-                // First, temporarily store all cards' current positions
-                const originalPositions = [];
-                cards.forEach(card => {
-                    originalPositions.push({
-                        card: card,
-                        slot: parseInt(card.getAttribute('data-slot'))
-                    });
-                });
-                
-                // Sort cards by their slot position
-                originalPositions.sort((a, b) => a.slot - b.slot);
-                
-                // Only transform non-selected cards
-                originalPositions.forEach(item => {
-                    if (item.card !== selectedCard) {
-                        // Change the content first
-                        const cardBack = item.card.querySelector('.card-back');
-                        cardBack.innerHTML = letters[letterIndex];
-                        item.card.dataset.letter = letters[letterIndex].toLowerCase();
-                        
-                        // Add letter mode class
-                        item.card.classList.add('letter-mode');
-                        
-                        // Flip the card
-                        const cardInner = item.card.querySelector('.card-inner');
-                        cardInner.style.transform = 'rotateY(180deg)';
-                        
-                        letterIndex++;
+            // Ensure all notes have type property
+            if (this.noteMap && this.noteMap.notes) {
+                this.noteMap.notes = this.noteMap.notes.map(note => {
+                    if (!note.type) {
+                        note.type = 'tap';
                     }
+                    return note;
                 });
+            }
+            console.log("Loaded note map:", this.noteMap);
+        } catch (error) {
+            console.error('Failed to load note map:', error);
+            this.noteMap = { notes: [] };
+        }
+        
+        // Move selected card to position
+        this.moveTrackCard(card);
+        
+        // Transform other cards to letters
+        this.transformCardsToLetters(card);
+        
+        // Show gameplay UI
+        this.showGameplayUI();
+        
+        // Start countdown
+        await this.startCountdown();
+        
+        // Start the game
+        this.playTrack();
+    }
+    
+    moveTrackCard(card) {
+        const trackCard = document.getElementById('activeTrackCard');
+        const cardRect = card.getBoundingClientRect();
+        
+        // Copy content
+        trackCard.innerHTML = card.innerHTML;
+        
+        // Position and show
+        trackCard.style.display = 'block';
+        trackCard.style.left = `${cardRect.left}px`;
+        trackCard.style.top = `${cardRect.top}px`;
+        trackCard.style.width = `${cardRect.width}px`;
+        trackCard.style.height = `${cardRect.height}px`;
+        
+        // Animate to right position
+        setTimeout(() => {
+            trackCard.style.transition = 'all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)';
+            trackCard.style.left = '';
+            trackCard.style.top = '';
+            trackCard.style.width = '';
+            trackCard.style.height = '';
+            trackCard.classList.add('active');
+        }, 50);
+        
+        // Hide original card
+        card.style.opacity = '0';
+    }
+    
+    transformCardsToLetters(selectedCard) {
+        const cards = document.querySelectorAll('.card');
+        const letters = ['D', 'F', 'J', 'K'];
+        let letterIndex = 0;
+        
+        // First, temporarily store all cards' current positions
+        const originalPositions = [];
+        cards.forEach(card => {
+            originalPositions.push({
+                card: card,
+                slot: parseInt(card.getAttribute('data-slot'))
+            });
+        });
+        
+        // Sort cards by their slot position
+        originalPositions.sort((a, b) => a.slot - b.slot);
+        
+        // Only transform non-selected cards
+        originalPositions.forEach(item => {
+            if (item.card !== selectedCard) {
+                // Change the content first
+                const cardBack = item.card.querySelector('.card-back');
+                cardBack.innerHTML = letters[letterIndex];
+                item.card.dataset.letter = letters[letterIndex].toLowerCase();
                 
-                // Recalculate positions for centered layout
-                const containerWidth = document.querySelector('.cards-container').offsetWidth;
-                const cardWidth = 180;
-                const cardGap = 50;
-                const totalWidth = (4 * cardWidth) + (3 * cardGap);
-                const startX = (containerWidth - totalWidth) / 2;
+                // Add letter mode class
+                item.card.classList.add('letter-mode');
                 
-                // Update card slot positions
-                for (let i = 0; i < 4; i++) {
-                    cardSlotPositions[i] = startX + (i * (cardWidth + cardGap));
-                }
+                // Flip the card
+                const cardInner = item.card.querySelector('.card-inner');
+                cardInner.style.transform = 'rotateY(180deg)';
                 
-                // Position the cards
-                let newIndex = 0;
-                originalPositions.forEach(item => {
-                    if (item.card !== selectedCard) {
-                        setTimeout(() => {
-                            positionCardInSlot(item.card, newIndex);
+                letterIndex++;
+            }
+        });
+        
+        // Recalculate positions for centered layout
+        const containerWidth = document.querySelector('.cards-container').offsetWidth;
+        const cardWidth = 180;
+        const cardGap = 50;
+        const totalWidth = (4 * cardWidth) + (3 * cardGap);
+        const startX = (containerWidth - totalWidth) / 2;
+        
+        // Only update positions if window.cardSlotPositions is defined
+        if (window.cardSlotPositions) {
+            // Update card slot positions
+            for (let i = 0; i < 4; i++) {
+                window.cardSlotPositions[i] = startX + (i * (cardWidth + cardGap));
+            }
+            
+            // Position the cards
+            let newIndex = 0;
+            originalPositions.forEach(item => {
+                if (item.card !== selectedCard) {
+                    setTimeout(() => {
+                        if (typeof window.positionCardInSlot === 'function') {
+                            window.positionCardInSlot(item.card, newIndex);
                             newIndex++;
-                        }, 800);
-                    }
-                });
-            }
-            
-            async startCountdown() {
-                const countdownElement = document.querySelector('.countdown');
-                countdownElement.classList.add('active');
-                
-                for (let i = 3; i > 0; i--) {
-                    countdownElement.textContent = i;
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                }
-                
-                countdownElement.textContent = 'GO!';
-                await new Promise(resolve => setTimeout(resolve, 500));
-                countdownElement.classList.remove('active');
-            }
-            
-            showGameplayUI() {
-                document.querySelector('.gameplay-area').classList.add('active');
-                document.querySelector('.score-display').classList.add('active');
-                document.querySelector('.combo-display').classList.add('active');
-                document.querySelector('.track-progress').classList.add('active');
-            }
-            
-            playTrack() {
-                if (!this.noteMap || !this.noteMap.notes) return;
-                
-                this.audio = new Audio(this.currentTrack.audio);
-                this.audio.play();
-                this.startTime = Date.now();
-                
-                // Start note spawning
-                this.noteMap.notes.forEach(note => {
-                    const spawnTime = note.time - this.noteSpeed;
-                    setTimeout(() => this.spawnNote(note), spawnTime);
-                });
-                
-                // Track progress bar
-                const progressBar = document.querySelector('.track-progress-fill');
-                this.progressInterval = setInterval(() => {
-                    const elapsed = Date.now() - this.startTime;
-                    const progress = (elapsed / this.audio.duration / 1000) * 100;
-                    progressBar.style.width = `${progress}%`;
-                }, 100);
-                
-                // Game loop
-                this.gameLoop();
-                
-                // End game when track finishes
-                this.audio.addEventListener('ended', () => this.endGame());
-            }
-            
-            spawnNote(noteData) {
-                const note = document.createElement('div');
-                note.className = `note ${noteData.type === 'hold' ? 'hold' : ''}`;
-                note.dataset.lane = noteData.lane;
-                note.dataset.time = noteData.time;
-                
-                const track = document.querySelector(`.note-track.${noteData.lane}`);
-                note.style.left = '10px';
-                
-                if (noteData.type === 'hold') {
-                    note.dataset.duration = noteData.duration;
-                    note.dataset.holding = 'false';
-                    
-                    // Calculate hold height
-                    const holdHeight = (noteData.duration / this.noteSpeed) * 660;
-                    
-                    // Create hold trail
-                    const holdTrail = document.createElement('div');
-                    holdTrail.className = 'hold-trail';
-                    holdTrail.style.height = `${holdHeight}px`;
-                    holdTrail.style.top = `-${holdHeight + 40}px`; // Position above the screen
-                    holdTrail.style.left = '10px';
-                    
-                    // Create hold end
-                    const holdEnd = document.createElement('div');
-                    holdEnd.className = 'hold-end';
-                    holdEnd.style.top = `-${holdHeight + 80}px`; // Position above the trail
-                    holdEnd.style.left = '10px';
-                    
-                    // Add trail and end to the track
-                    track.appendChild(holdTrail);
-                    track.appendChild(holdEnd);
-                    
-                    // Store references
-                    note.dataset.trailId = holdTrail.id = 'trail-' + noteData.time;
-                    note.dataset.endId = holdEnd.id = 'end-' + noteData.time;
-                    
-                    // Position the main note at the bottom of the hold
-                    note.style.top = '-40px';
-                } else {
-                    // Regular note
-                    note.style.top = '-40px';
-                }
-                
-                track.appendChild(note);
-                
-                this.activeNotes.push({
-                    element: note,
-                    data: noteData,
-                    hit: false
-                });
-            }
-            
-            gameLoop() {
-                const update = () => {
-                    if (!this.isPlaying) return;
-                    
-                    const currentTime = Date.now() - this.startTime;
-                    
-                    this.activeNotes.forEach((note, index) => {
-                        if (note.hit) return;
-                        
-                        const timeDiff = note.data.time - currentTime;
-                        const position = (1 - (timeDiff / this.noteSpeed)) * 660;
-                        
-                        if (note.data.type === 'hold') {
-                            // For hold notes, position all components together
-                            const trail = document.getElementById(note.element.dataset.trailId);
-                            const end = document.getElementById(note.element.dataset.endId);
-                            
-                            if (trail && end) {
-                                const holdHeight = (note.data.duration / this.noteSpeed) * 660;
-                                
-                                // Position the head note
-                                note.element.style.top = `${position}px`;
-                                
-                                // Position the trail above the head note
-                                trail.style.top = `${position - holdHeight}px`;
-                                
-                                // Position the end above the trail
-                                end.style.top = `${position - holdHeight - 40}px`;
-                            }
-                        } else {
-                            // Regular note
-                            note.element.style.top = `${position}px`;
                         }
-                        
-                        // Check if note is missed
-                        if (timeDiff < -200) {
-                            this.missNote(note);
-                            note.hit = true;
-                        }
-                    });
-                    
-                    // Remove hit notes
-                    this.activeNotes = this.activeNotes.filter(note => !note.hit || note.element.parentNode);
-                    
-                    requestAnimationFrame(update);
-                };
-                
-                requestAnimationFrame(update);
-            }
-            
-            handleKeyPress(event) {
-                if (!this.isPlaying) return;
-                
-                const key = event.key.toLowerCase();
-                if (!this.keyMapping.hasOwnProperty(key)) return;
-                
-                const lane = this.trackPositions[this.keyMapping[key]];
-                const currentTime = Date.now() - this.startTime;
-                
-                // Find closest note in this lane
-                let closestNote = null;
-                let closestDiff = Infinity;
-                
-                this.activeNotes.forEach(note => {
-                    if (note.data.lane === lane && !note.hit) {
-                        const diff = Math.abs(note.data.time - currentTime);
-                        if (diff < closestDiff) {
-                            closestDiff = diff;
-                            closestNote = note;
-                        }
-                    }
-                });
-                
-                if (closestNote && closestDiff < 200) {
-                    if (closestNote.data.type === 'hold') {
-                        closestNote.element.dataset.holding = 'true';
-                        closestNote.element.dataset.startTime = currentTime;
-                        this.hitNote(closestNote, closestDiff);
-                    } else {
-                        this.hitNote(closestNote, closestDiff);
-                    }
+                    }, 800);
                 }
-            }
-
-            handleKeyRelease(event) {
-                if (!this.isPlaying) return;
-                
-                const key = event.key.toLowerCase();
-                if (!this.keyMapping.hasOwnProperty(key)) return;
-                
-                const lane = this.trackPositions[this.keyMapping[key]];
-                
-                // Find active hold notes in this lane
-                this.activeNotes.forEach(note => {
-                    if (note.data.lane === lane && note.data.type === 'hold' && note.element.dataset.holding === 'true') {
-                        const currentTime = Date.now() - this.startTime;
-                        const holdTime = currentTime - parseFloat(note.element.dataset.startTime);
-                        const expectedDuration = note.data.duration;
-                        
-                        // Calculate score based on hold accuracy
-                        const holdAccuracy = Math.min(holdTime / expectedDuration, 1.0);
-                        let bonusPoints = Math.floor(300 * holdAccuracy);
-                        
-                        this.score += bonusPoints;
-                        document.getElementById('scoreValue').textContent = this.score;
-                        
-                        // Remove the note
-                        note.element.remove();
-                        note.hit = true;
-                    }
-                });
-            }
+            });
+        }
+    }
+    
+    async startCountdown() {
+        const countdownElement = document.querySelector('.countdown');
+        countdownElement.classList.add('active');
+        
+        for (let i = 3; i > 0; i--) {
+            countdownElement.textContent = i;
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        
+        countdownElement.textContent = 'GO!';
+        await new Promise(resolve => setTimeout(resolve, 500));
+        countdownElement.classList.remove('active');
+    }
+    
+    showGameplayUI() {
+        document.querySelector('.gameplay-area').classList.add('active');
+        document.querySelector('.score-display').classList.add('active');
+        document.querySelector('.combo-display').classList.add('active');
+        document.querySelector('.track-progress').classList.add('active');
+    }
+    
+    playTrack() {
+        if (!this.noteMap || !this.noteMap.notes) {
+            console.error("No note map loaded");
+            return;
+        }
+        
+        // Create and play the audio
+        this.audio = new Audio(this.currentTrack.audio);
+        
+        // Set volume
+        this.audio.volume = 0.8;
+        
+        const playPromise = this.audio.play();
+        
+        // Handle play promise for browsers that return one
+        if (playPromise !== undefined) {
+            playPromise.catch(error => {
+                console.error("Error playing audio:", error);
+                this.endGame();
+            });
+        }
+        
+        this.startTime = Date.now();
+        
+        // Log start time and first few notes for debugging
+        console.log("Game started at:", this.startTime);
+        console.log("First 5 notes:", this.noteMap.notes.slice(0, 5));
+        
+        // Start note spawning
+        this.noteMap.notes.forEach(note => {
+            // Calculate when note should be spawned based on note speed
+            const spawnTime = note.time - this.noteSpeed;
             
-            hitNote(note, timeDiff) {
-                if (note.data.type === 'hold') {
-                    // For hold notes, don't remove immediately
-                    note.element.dataset.holding = 'true';
-                    note.element.dataset.holdStart = Date.now() - this.startTime;
-                    
-                    // Calculate initial hit score
-                    let points = 0;
-                    let hitText = '';
-                    
-                    if (timeDiff < 30) {
-                        points = 150;
-                        hitText = 'PERFECT';
-                    } else if (timeDiff < 70) {
-                        points = 100;
-                        hitText = 'GREAT';
-                    } else if (timeDiff < 120) {
-                        points = 50;
-                        hitText = 'GOOD';
-                    } else {
-                        points = 25;
-                        hitText = 'OK';
-                    }
-                    
-                    this.score += points;
-                    this.combo++;
-                    
-                    // Update displays
-                    document.getElementById('scoreValue').textContent = this.score;
-                    document.getElementById('comboValue').textContent = this.combo;
-                    
-                    // Show hit effect
-                    this.showHitEffect(note.data.lane, hitText);
-                } else {
-                    // Regular note handling
-                    note.hit = true;
-                    note.element.remove();
-                    
-                    let points = 0;
-                    let hitText = '';
-                    
-                    if (timeDiff < 30) {
-                        points = 300;
-                        hitText = 'PERFECT';
-                    } else if (timeDiff < 70) {
-                        points = 200;
-                        hitText = 'GREAT';
-                    } else if (timeDiff < 120) {
-                        points = 100;
-                        hitText = 'GOOD';
-                    } else {
-                        points = 50;
-                        hitText = 'OK';
-                    }
-                    
-                    this.score += points;
-                    this.combo++;
-                    
-                    // Update displays
-                    document.getElementById('scoreValue').textContent = this.score;
-                    document.getElementById('comboValue').textContent = this.combo;
-                    
-                    // Show hit effect
-                    this.showHitEffect(note.data.lane, hitText);
-                }
-            }
+            // Add a minimum buffer to ensure note is never spawned in the past
+            const bufferTime = Math.max(0, spawnTime);
             
-            missNote(note) {
-                note.element.remove();
+            setTimeout(() => this.spawnNote(note), bufferTime);
+        });
+        
+        // Track progress bar
+        const progressBar = document.querySelector('.track-progress-fill');
+        this.progressInterval = setInterval(() => {
+            if (!this.audio) return;
+            
+            const elapsed = Date.now() - this.startTime;
+            
+            // Calculate progress as a percentage
+            const progress = (elapsed / (this.audio.duration * 1000)) * 100;
+            progressBar.style.width = `${Math.min(100, progress)}%`;
+        }, 100);
+        
+        // Game loop
+        this.gameLoop();
+        
+        // End game when track finishes
+        this.audio.addEventListener('ended', () => this.endGame());
+    }
+    
+    spawnNote(noteData) {
+        // Create the main note element
+        const note = document.createElement('div');
+        note.className = `note ${noteData.type === 'hold' ? 'hold' : ''}`;
+        note.dataset.lane = noteData.lane;
+        note.dataset.time = noteData.time;
+        
+        // Get the track for this note
+        const track = document.querySelector(`.note-track.${noteData.lane}`);
+        if (!track) {
+            console.error(`Track ${noteData.lane} not found`);
+            return;
+        }
+        
+        // Set initial position (centered in lane)
+        note.style.left = '10px';
+        
+        // Handle hold notes
+        if (noteData.type === 'hold' && noteData.duration) {
+            note.dataset.duration = noteData.duration;
+            note.dataset.holding = 'false';
+            
+            // Calculate hold height based on duration and note speed
+            // The formula ensures hold length is proportional to duration
+            const holdHeight = (noteData.duration / this.noteSpeed) * 600;
+            
+            // Create hold trail (the visual indicator for the hold duration)
+            const holdTrail = document.createElement('div');
+            holdTrail.className = 'hold-trail';
+            holdTrail.style.height = `${holdHeight}px`;
+            holdTrail.style.top = `-${holdHeight + 40}px`; // Position above the note
+            holdTrail.style.left = '10px';
+            
+            // Create hold end cap (the top of the hold note)
+            const holdEnd = document.createElement('div');
+            holdEnd.className = 'hold-end';
+            holdEnd.style.top = `-${holdHeight + 80}px`; // Position above the trail
+            holdEnd.style.left = '10px';
+            
+            // Add trail and end to track
+            track.appendChild(holdTrail);
+            track.appendChild(holdEnd);
+            
+            // Store references to the trail and end elements
+            note.dataset.trailId = holdTrail.id = `trail-${Date.now()}-${noteData.time}`;
+            note.dataset.endId = holdEnd.id = `end-${Date.now()}-${noteData.time}`;
+            
+            // Position the main note at the bottom of the hold
+            note.style.top = '-40px';
+        } else {
+            // Regular tap note
+            note.style.top = '-40px';
+        }
+        
+        // Add to DOM
+        track.appendChild(note);
+        
+        // Add to active notes array
+        this.activeNotes.push({
+            element: note,
+            data: noteData,
+            hit: false,
+            holdStarted: false,
+            holdActive: false,
+            holdCompleted: false
+        });
+    }
+    
+    gameLoop() {
+        const update = () => {
+            if (!this.isPlaying) return;
+            
+            const currentTime = Date.now() - this.startTime;
+            
+            // Update each active note
+            this.activeNotes.forEach((note, index) => {
+                if (!note.element || note.hit && !note.holdActive) return;
                 
-                // Remove hold note trail and end if they exist
-                if (note.data.type === 'hold') {
+                const timeDiff = note.data.time - currentTime;
+                const position = (1 - (timeDiff / this.noteSpeed)) * 600;
+                
+                if (note.data.type === 'hold' && note.data.duration) {
+                    // For hold notes, position all components together
                     const trail = document.getElementById(note.element.dataset.trailId);
                     const end = document.getElementById(note.element.dataset.endId);
-                    if (trail) trail.remove();
-                    if (end) end.remove();
+                    
+                    if (trail && end) {
+                        const holdHeight = (note.data.duration / this.noteSpeed) * 600;
+                        
+                        // Position the head note
+                        note.element.style.top = `${position}px`;
+                        
+                        // Position the trail above the head note
+                        trail.style.top = `${position - holdHeight}px`;
+                        
+                        // Position the end above the trail
+                        end.style.top = `${position - holdHeight - 40}px`;
+                        
+                        // Handle hold progress if the hold has started
+                        if (note.holdActive) {
+                            // Calculate hold progress
+                            const holdProgress = (currentTime - note.holdStart) / note.data.duration;
+                            
+                            // If hold is complete
+                            if (holdProgress >= 1 && !note.holdCompleted) {
+                                note.holdCompleted = true;
+                                this.completeHoldNote(note);
+                            }
+                        }
+                    }
+                } else {
+                    // Regular note
+                    note.element.style.top = `${position}px`;
                 }
                 
-                this.combo = 0;
-                document.getElementById('comboValue').textContent = this.combo;
-                this.showHitEffect(note.data.lane, 'MISS');
+                // Check if note should be hit automatically (passed the hit zone)
+                const hitPosition = 540; // Position of the hit zone
+                
+                // Check if note is missed (passed hit zone without being hit)
+                if (position > hitPosition + 100 && !note.hit) {
+                    this.missNote(note);
+                }
+            });
+            
+            // Remove notes that are no longer needed
+            this.activeNotes = this.activeNotes.filter(note => {
+                const keepNote = note.element && 
+                                note.element.parentNode && 
+                                (!note.hit || note.holdActive);
+                
+                if (!keepNote && note.element) {
+                    // Clean up any related elements
+                    if (note.data.type === 'hold') {
+                        const trail = document.getElementById(note.element.dataset.trailId);
+                        const end = document.getElementById(note.element.dataset.endId);
+                        if (trail) trail.remove();
+                        if (end) end.remove();
+                    }
+                }
+                
+                return keepNote;
+            });
+            
+            // Continue the game loop
+            requestAnimationFrame(update);
+        };
+        
+        requestAnimationFrame(update);
+    }
+    
+    handleKeyPress(event) {
+        if (!this.isPlaying) return;
+        
+        const key = event.key.toLowerCase();
+        
+        // Only handle keys we care about
+        if (!this.keyMapping.hasOwnProperty(key)) return;
+        
+        // Get the lane
+        const lane = this.trackPositions[this.keyMapping[key]];
+        
+        // Get current time
+        const currentTime = Date.now() - this.startTime;
+        
+        // Find the closest note in this lane
+        const notesInLane = this.activeNotes.filter(note => 
+            note.data.lane === lane && 
+            !note.hit && 
+            Math.abs(note.data.time - currentTime) < 300 // 300ms hit window
+        );
+        
+        if (notesInLane.length > 0) {
+            // Sort by time difference to find closest
+            notesInLane.sort((a, b) => 
+                Math.abs(a.data.time - currentTime) - Math.abs(b.data.time - currentTime)
+            );
+            
+            const closestNote = notesInLane[0];
+            const timeDiff = Math.abs(closestNote.data.time - currentTime);
+            
+            // Hit the note if within hit window
+            if (timeDiff < 300) {
+                if (closestNote.data.type === 'hold') {
+                    this.startHoldNote(closestNote, currentTime);
+                } else {
+                    this.hitNote(closestNote, timeDiff);
+                }
+            }
+        }
+    }
+
+    handleKeyRelease(event) {
+        if (!this.isPlaying) return;
+        
+        const key = event.key.toLowerCase();
+        if (!this.keyMapping.hasOwnProperty(key)) return;
+        
+        const lane = this.trackPositions[this.keyMapping[key]];
+        
+        // Find any active hold notes in this lane
+        const activeHold = this.activeNotes.find(note => 
+            note.data.lane === lane && 
+            note.data.type === 'hold' && 
+            note.holdActive
+        );
+        
+        if (activeHold) {
+            // Calculate how long the hold was active
+            const currentTime = Date.now() - this.startTime;
+            const holdTime = currentTime - activeHold.holdStart;
+            const expectedDuration = activeHold.data.duration;
+            
+            // Calculate score based on how much of the hold was completed
+            const holdAccuracy = Math.min(holdTime / expectedDuration, 1.0);
+            
+            console.log(`Hold released with accuracy: ${holdAccuracy.toFixed(2)}`);
+            
+            // Add points based on hold accuracy
+            let bonusPoints = Math.floor(300 * holdAccuracy);
+            this.score += bonusPoints;
+            
+            // Update score display
+            document.getElementById('scoreValue').textContent = this.score;
+            
+            // If the hold was nearly complete, count it as completed
+            if (holdAccuracy > 0.8) {
+                this.completeHoldNote(activeHold);
+            } else {
+                // Otherwise mark it as released early
+                activeHold.holdActive = false;
+                
+                // Break combo if released too early
+                if (holdAccuracy < 0.5) {
+                    this.combo = 0;
+                    document.getElementById('comboValue').textContent = this.combo;
+                }
+            }
+        }
+    }
+    
+    startHoldNote(note, currentTime) {
+        if (note.hit || note.holdStarted) return;
+        
+        // Mark the note as hit
+        note.hit = true;
+        note.holdStarted = true;
+        note.holdActive = true;
+        note.holdStart = currentTime;
+        
+        // Update the visual state
+        if (note.element) {
+            note.element.classList.add('active-hold');
+        }
+        
+        // Increase score and combo
+        this.score += 100; // Initial points for hitting the start
+        this.combo++;
+        
+        // Update displays
+        document.getElementById('scoreValue').textContent = this.score;
+        document.getElementById('comboValue').textContent = this.combo;
+        
+        // Show "PERFECT" judgment for starting the hold
+        this.showHitEffect(note.data.lane, "PERFECT");
+        
+        console.log(`Hold note started: ${note.data.lane} at ${currentTime}ms`);
+    }
+    
+    completeHoldNote(note) {
+        note.holdActive = false;
+        note.holdCompleted = true;
+        
+        // Award points for completing the hold
+        this.score += 200;
+        this.combo++;
+        
+        // Update max combo
+        if (this.combo > this.maxCombo) {
+            this.maxCombo = this.combo;
+        }
+        
+        // Update displays
+        document.getElementById('scoreValue').textContent = this.score;
+        document.getElementById('comboValue').textContent = this.combo;
+        
+        // Show effect for completing the hold
+        this.showHitEffect(note.data.lane, "HOLD COMPLETE");
+        
+        console.log(`Hold note completed: ${note.data.lane}`);
+        
+        // Remove the note and its components
+        if (note.element) {
+            const trail = document.getElementById(note.element.dataset.trailId);
+            const end = document.getElementById(note.element.dataset.endId);
+            
+            if (trail) trail.remove();
+            if (end) end.remove();
+            note.element.remove();
+        }
+    }
+    
+    hitNote(note, timeDiff) {
+        if (note.hit) return;
+        
+        // Mark as hit
+        note.hit = true;
+        
+        // Calculate judgment based on timing
+        let hitText = '';
+        let points = 0;
+        
+        if (timeDiff < 30) {
+            hitText = 'PERFECT';
+            points = 300;
+        } else if (timeDiff < 70) {
+            hitText = 'GREAT';
+            points = 200;
+        } else if (timeDiff < 120) {
+            hitText = 'GOOD';
+            points = 100;
+        } else {
+            hitText = 'OK';
+            points = 50;
+        }
+        
+        // Add points and increase combo
+        this.score += points;
+        this.combo++;
+        
+        // Update max combo
+        if (this.combo > this.maxCombo) {
+            this.maxCombo = this.combo;
+        }
+        
+        // Update displays
+        document.getElementById('scoreValue').textContent = this.score;
+        document.getElementById('comboValue').textContent = this.combo;
+        
+        // Show hit effect
+        this.showHitEffect(note.data.lane, hitText);
+        
+        // Remove the note
+        if (note.element) {
+            note.element.remove();
+        }
+    }
+    
+    missNote(note) {
+        if (note.hit || note.missed) return;
+        
+        // Mark as missed
+        note.missed = true;
+        
+        // Reset combo
+        this.combo = 0;
+        document.getElementById('comboValue').textContent = this.combo;
+        
+        // Show miss effect
+        this.showHitEffect(note.data.lane, 'MISS');
+        
+        console.log(`Missed note: ${note.data.lane} at ${note.data.time}ms`);
+        
+        // Remove the note
+        if (note.element) {
+            // For hold notes, also remove the trail and end
+            if (note.data.type === 'hold') {
+                const trail = document.getElementById(note.element.dataset.trailId);
+                const end = document.getElementById(note.element.dataset.endId);
+                
+                if (trail) trail.remove();
+                if (end) end.remove();
             }
             
-            showHitEffect(lane, text) {
-                const effect = document.createElement('div');
-                effect.className = 'hit-effect';
-                effect.textContent = text;
-                
-                const track = document.querySelector(`.note-track.${lane}`);
-                effect.style.left = '50%';
-                effect.style.transform = 'translateX(-50%)';
-                effect.style.bottom = '80px';
-                
-                track.appendChild(effect);
-                setTimeout(() => effect.remove(), 500);
+            note.element.remove();
+        }
+    }
+    
+    showHitEffect(lane, text) {
+        const effect = document.createElement('div');
+        effect.className = 'hit-effect';
+        effect.textContent = text;
+        
+        const track = document.querySelector(`.note-track.${lane}`);
+        if (!track) return;
+        
+        effect.style.left = '50%';
+        effect.style.transform = 'translateX(-50%)';
+        effect.style.bottom = '80px';
+        
+        track.appendChild(effect);
+        
+        // Remove after animation
+        setTimeout(() => {
+            if (effect.parentNode) {
+                effect.remove();
             }
-            
-            endGame() {
-                this.isPlaying = false;
-                clearInterval(this.progressInterval);
-                
-                // Stop the audio
-                if (this.audio) {
-                    this.audio.pause();
-                    this.audio.currentTime = 0;
-                    this.audio = null;
-                }
-                
-                // Update max combo if necessary
-                if (this.combo > this.maxCombo) {
-                    this.maxCombo = this.combo;
-                }
-                
-                // Hide gameplay UI
-                document.querySelector('.gameplay-area').classList.remove('active');
-                document.querySelector('.score-display').classList.remove('active');
-                document.querySelector('.combo-display').classList.remove('active');
-                document.querySelector('.track-progress').classList.remove('active');
-                
-                // Show final score
-                alert(`Game Over!\nScore: ${this.score}\nMax Combo: ${this.maxCombo}`);
-                
-                // Hide and reset track card
-                const trackCard = document.getElementById('activeTrackCard');
-                trackCard.classList.remove('active');
-                trackCard.style.display = 'none';
-                
-                // Reset cards
-                this.resetCards();
-            }
+        }, 500);
+    }
+    
+    endGame() {
+        this.isPlaying = false;
+        clearInterval(this.progressInterval);
+        
+        // Stop the audio
+        if (this.audio) {
+            this.audio.pause();
+            this.audio.currentTime = 0;
+            this.audio = null;
+        }
+        
+        // Update max combo if necessary
+        if (this.combo > this.maxCombo) {
+            this.maxCombo = this.combo;
+        }
+        
+        // Hide gameplay UI
+        document.querySelector('.gameplay-area').classList.remove('active');
+        document.querySelector('.score-display').classList.remove('active');
+        document.querySelector('.combo-display').classList.remove('active');
+        document.querySelector('.track-progress').classList.remove('active');
+        
+        // Show final score
+        alert(`Game Over!\nScore: ${this.score}\nMax Combo: ${this.maxCombo}`);
+        
+        // Hide and reset track card
+        const trackCard = document.getElementById('activeTrackCard');
+        trackCard.classList.remove('active');
+        trackCard.style.display = 'none';
+        
+        // Reset cards
+        this.resetCards();
+    }
+    
             
             resetCards() {
                 const cards = document.querySelectorAll('.card');
@@ -2966,7 +3187,124 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(initPartyMode, 2000);
 });
         setTimeout(animateLetters, 1000);
+        // This function should be called after the document is loaded
+// and after your Party Mode is initialized
+function initRhythmGame() {
+    // Create the global rhythm game instance
+    window.rhythmGame = new RhythmGame();
+    
+    // Initialize it
+    window.rhythmGame.init();
+    
+    console.log("Rhythm game initialized globally");
+}
+
+// Helper function to check if necessary variables exist
+function checkRhythmGameDependencies() {
+    if (typeof window.calculateCardSlotPositions !== 'function') {
+        console.error("Missing window.calculateCardSlotPositions function");
+        return false;
+    }
+    
+    if (typeof window.positionCardInSlot !== 'function') {
+        console.error("Missing window.positionCardInSlot function");
+        return false;
+    }
+    
+    if (!window.cardSlotPositions) {
+        console.error("Missing window.cardSlotPositions array");
+        return false;
+    }
+    
+    return true;
+}
+
+// Update the Party Mode activation function to initialize the rhythm game
+function updatePartyModeActivation() {
+    // Store the original function if it exists
+    const originalActivatePartyMode = window.activatePartyMode || function() {};
+    
+    // Replace with enhanced version
+    window.activatePartyMode = function() {
+        // Call the original function first
+        originalActivatePartyMode();
         
+        // Then initialize the rhythm game if not already done
+        if (!window.rhythmGame) {
+            // Check dependencies first
+            if (checkRhythmGameDependencies()) {
+                initRhythmGame();
+            } else {
+                console.error("Cannot initialize rhythm game: missing dependencies");
+            }
+        }
+    };
+}
+
+// Place this code at the end of your main script or in a DOMContentLoaded event handler
+document.addEventListener('DOMContentLoaded', function() {
+    // Update the Party Mode activation function after other scripts have loaded
+    setTimeout(updatePartyModeActivation, 2000);
+});
+
+// Function to create timing reference guides for debugging
+function addTimingReferenceGuides() {
+    const style = document.createElement('style');
+    style.textContent = `
+        .timing-debug-line {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: rgba(255, 0, 0, 0.7);
+            z-index: 100;
+            pointer-events: none;
+        }
+        
+        .timing-debug-label {
+            position: absolute;
+            left: 10px;
+            color: white;
+            font-size: 12px;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 2px 5px;
+            z-index: 101;
+            pointer-events: none;
+        }
+    `;
+    document.head.appendChild(style);
+    
+    const gameplayArea = document.querySelector('.gameplay-area');
+    if (!gameplayArea) return;
+    
+    // Add timing lines at various positions
+    const positions = [
+        { y: 50, label: "Top" },
+        { y: 200, label: "25%" },
+        { y: 400, label: "50%" },
+        { y: 500, label: "Hit Zone" },
+        { y: 550, label: "Perfect" }
+    ];
+    
+    positions.forEach(pos => {
+        const line = document.createElement('div');
+        line.className = 'timing-debug-line';
+        line.style.top = `${pos.y}px`;
+        
+        const label = document.createElement('div');
+        label.className = 'timing-debug-label';
+        label.style.top = `${pos.y - 10}px`;
+        label.textContent = `${pos.label} (${pos.y}px)`;
+        
+        gameplayArea.appendChild(line);
+        gameplayArea.appendChild(label);
+    });
+    
+    console.log("Timing reference guides added");
+}
+
+// You can call this function in the console to add visual debugging guides
+// window.addTimingReferenceGuides();
     </script>
 </body>
 </html>
