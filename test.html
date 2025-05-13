@@ -1,0 +1,1793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vertical Rhythm Game Note Mapper</title>
+    <style>
+        /* Base Styles */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            margin: 0;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #bb86fc;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            background-color: #bb86fc;
+            color: #000000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            background-color: #9965f4;
+        }
+        
+        button:disabled {
+            background-color: #666666;
+            cursor: not-allowed;
+        }
+        
+        /* Game Layout */
+        .layout-switch {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+        
+        .layout-switch button {
+            background-color: #333;
+            margin: 0 5px;
+        }
+        
+        .layout-switch button.active {
+            background-color: #bb86fc;
+        }
+        
+        .game-section {
+            display: flex;
+            gap: 20px;
+        }
+        
+        /* Vertical Game Layout */
+        .game-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 600px;
+            background-color: #1f1f1f;
+            border-radius: 10px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .song-info {
+            color: #03dac6;
+        }
+        
+        .lane-container {
+            flex: 1;
+            display: flex;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .game-lane {
+            flex: 1;
+            position: relative;
+            margin: 0 2px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 10px 10px 0 0;
+            overflow: hidden;
+        }
+        
+        .note-area {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        .game-note {
+            position: absolute;
+            width: 80%;
+            height: 30px;
+            left: 10%;
+            background-color: #bb86fc;
+            border-radius: 5px;
+            transform: translateY(-100%);
+            transition: top 0.1s linear;
+        }
+        
+        .game-note-d {
+            background-color: rgba(255, 0, 0, 0.7);
+        }
+        
+        .game-note-f {
+            background-color: rgba(0, 255, 0, 0.7);
+        }
+        
+        .game-note-j {
+            background-color: rgba(0, 0, 255, 0.7);
+        }
+        
+        .game-note-k {
+            background-color: rgba(255, 255, 0, 0.7);
+        }
+        
+        .game-note.hold-note {
+            height: auto;
+        }
+        
+        .hit-area {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 50px;
+            background-color: rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            /* Important: Add a visible target line at the top of the hit area */
+            border-top: 2px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+
+        /* Add a hit line indicator */
+        .hit-area::before {
+            content: '';
+            position: absolute;
+            top: 0; /* This is the perfect hit position - the top of the hit area */
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 0 5px #fff, 0 0 10px #fff;
+            z-index: 2;
+        }
+
+        /* Highlight the hit area more when active */
+        .hit-area.active {
+            background-color: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+        }
+
+        /* Make the hit area pulse subtly to draw attention */
+        @keyframes hitAreaPulse {
+            0% { background-color: rgba(255, 255, 255, 0.15); }
+            50% { background-color: rgba(255, 255, 255, 0.25); }
+            100% { background-color: rgba(255, 255, 255, 0.15); }
+        }
+        .hit-area-d {
+            background-color: rgba(255, 0, 0, 0.2);
+            color: rgba(255, 0, 0, 0.8);
+        }
+        
+        .hit-area-f {
+            background-color: rgba(0, 255, 0, 0.2);
+            color: rgba(0, 255, 0, 0.8);
+        }
+        
+        .hit-area-j {
+            background-color: rgba(0, 0, 255, 0.2);
+            color: rgba(0, 0, 255, 0.8);
+        }
+        
+        .hit-area-k {
+            background-color: rgba(255, 255, 0, 0.2);
+            color: rgba(255, 255, 0, 0.8);
+        }
+        
+        
+        .progress-bar {
+            position: absolute;
+            bottom: 60px;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background-color: #333;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background-color: #bb86fc;
+        }
+        
+        /* Controls Section */
+        .controls-section {
+            width: 300px;
+            background-color: #1f1f1f;
+            border-radius: 10px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .audio-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .file-label {
+            background-color: #03dac6;
+            color: #000000;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .file-label:hover {
+            background-color: #018786;
+        }
+        
+        .playback-controls {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
+        }
+        
+        .playback-controls button {
+            flex: 1;
+            padding: 8px;
+        }
+        
+        #playbackRate {
+            background-color: #333;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 8px;
+            margin-top: 5px;
+        }
+        
+        /* Note List Section */
+        .note-list-section {
+            background-color: #1f1f1f;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .note-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .note-list table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .note-list th {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid #333333;
+        }
+        
+        .note-list td {
+            padding: 10px;
+            border-bottom: 1px solid #333333;
+        }
+        
+        .note-list tr:hover {
+            background-color: #2a2a2a;
+        }
+        
+        /* Export Section */
+        .export-section {
+            background-color: #1f1f1f;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .export-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        textarea {
+            width: 100%;
+            height: 200px;
+            background-color: #121212;
+            color: #bbbbbb;
+            border: 1px solid #333333;
+            border-radius: 5px;
+            padding: 10px;
+            font-family: monospace;
+            resize: vertical;
+        }
+        
+        /* Test Play Controls */
+        .test-controls {
+            margin-top: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .test-controls button {
+            background-color: #cf6679;
+        }
+        
+        .test-controls button:hover {
+            background-color: #ba3f51;
+        }
+        
+        .score-display {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #2d2d2d;
+            border-radius: 5px;
+        }
+        
+        .scoring-item {
+            text-align: center;
+        }
+        
+        .scoring-item .label {
+            font-size: 12px;
+            color: #bbbbbb;
+        }
+        
+        .scoring-item .value {
+            font-size: 20px;
+            font-weight: bold;
+        }
+        
+        /* Hold notes */
+        .hold-note {
+            position: relative;
+        }
+        
+        .hold-line {
+            position: absolute;
+            width: 100%;
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+        
+        /* Status message */
+        .status-message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #333;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 1000;
+            display: none;
+            animation: fadeOut 3s forwards;
+        }
+        
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            80% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+        
+        /* Mobile responsiveness */
+        @media screen and (max-width: 992px) {
+            .game-section {
+                flex-direction: column;
+            }
+            
+            .controls-section {
+                width: auto;
+            }
+            
+            .game-container {
+                height: 500px;
+            }
+        }
+        
+        /* Animation for hit effect */
+        @keyframes hitEffect {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        
+        .hit-effect {
+            animation: hitEffect 0.2s ease-out;
+        }
+        
+        /* Hit judgment text animation */
+        .judgment-text {
+            position: absolute;
+            font-weight: bold;
+            font-size: 18px;
+            z-index: 100;
+            pointer-events: none;
+            opacity: 0;
+            animation: judgmentAnim 1s ease-out forwards;
+        }
+        
+        @keyframes judgmentAnim {
+            0% { opacity: 0; transform: translateY(0); }
+            20% { opacity: 1; }
+            100% { opacity: 0; transform: translateY(-30px); }
+        }
+        
+        .judgment-perfect {
+            color: #ffeb3b;
+        }
+        
+        .judgment-great {
+            color: #4caf50;
+        }
+        
+        .judgment-good {
+            color: #2196f3;
+        }
+        
+        .judgment-miss {
+            color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Vertical Rhythm Game Note Mapper</h1>
+        
+        <div class="game-section">
+            <div class="game-container">
+                <div class="game-header">
+                    <div class="song-info" id="songInfo">No song loaded</div>
+                    <div class="test-play-status" id="testPlayStatus">Test Mode: Off</div>
+                </div>
+                
+                <div class="lane-container">
+                    <div class="game-lane" id="lane-d">
+                        <div class="note-area" id="note-area-d"></div>
+                        <div class="hit-area hit-area-d">D</div>
+                    </div>
+                    <div class="game-lane" id="lane-f">
+                        <div class="note-area" id="note-area-f"></div>
+                        <div class="hit-area hit-area-f">F</div>
+                    </div>
+                    <div class="game-lane" id="lane-j">
+                        <div class="note-area" id="note-area-j"></div>
+                        <div class="hit-area hit-area-j">J</div>
+                    </div>
+                    <div class="game-lane" id="lane-k">
+                        <div class="note-area" id="note-area-k"></div>
+                        <div class="hit-area hit-area-k">K</div>
+                    </div>
+                </div>
+                
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+            
+            <div class="controls-section">
+                <div class="audio-controls">
+                    <label for="audioFile" class="file-label">Choose Audio File</label>
+                    <input type="file" id="audioFile" class="file-input" accept="audio/*">
+                    
+                    <div class="playback-controls">
+                        <button id="playBtn" disabled>▶ Play</button>
+                        <button id="pauseBtn" disabled>⏸ Pause</button>
+                        <button id="restartBtn" disabled>↺ Restart</button>
+                    </div>
+                    
+                    <select id="playbackRate">
+                        <option value="0.25">0.25x</option>
+                        <option value="0.5">0.5x</option>
+                        <option value="0.75">0.75x</option>
+                        <option value="1" selected>1.0x</option>
+                    </select>
+                </div>
+                
+                <div class="test-controls">
+                    <button id="testModeBtn">Start Test Play</button>
+                    <div class="score-display" id="scoreDisplay" style="display: none;">
+                        <div class="scoring-item">
+                            <div class="label">Score</div>
+                            <div class="value" id="scoreValue">0</div>
+                        </div>
+                        <div class="scoring-item">
+                            <div class="label">Combo</div>
+                            <div class="value" id="comboValue">0</div>
+                        </div>
+                        <div class="scoring-item">
+                            <div class="label">Accuracy</div>
+                            <div class="value" id="accuracyValue">0%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="note-list-section">
+            <h2>Note List</h2>
+            <div class="note-list">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time (ms)</th>
+                            <th>Lane</th>
+                            <th>Type</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="noteListBody">
+                        <tr>
+                            <td colspan="4">No notes added yet</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="export-section">
+            <h2>Export Map</h2>
+            <div class="export-options">
+                <select id="exportFormat">
+                    <option value="json">JSON Format</option>
+                    <option value="csv">CSV Format</option>
+                </select>
+                <button id="generateBtn">Generate JSON</button>
+                <button id="copyBtn">Copy to Clipboard</button>
+                <button id="downloadBtn">Download as File</button>
+                <button id="importBtn">Import from JSON</button>
+                <button id="syncBPMBtn">Sync to BPM</button>
+            </div>
+            <textarea id="exportOutput" placeholder="JSON output will appear here..."></textarea>
+        </div>
+    </div>
+    
+    <div class="status-message" id="statusMessage"></div>
+    
+    <script>
+        // DOM elements
+        const audioFileInput = document.getElementById('audioFile');
+        const playBtn = document.getElementById('playBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const restartBtn = document.getElementById('restartBtn');
+        const playbackRateSelect = document.getElementById('playbackRate');
+        const songInfoElement = document.getElementById('songInfo');
+        const testModeBtn = document.getElementById('testModeBtn');
+        const testPlayStatus = document.getElementById('testPlayStatus');
+        const noteListBody = document.getElementById('noteListBody');
+        const generateBtn = document.getElementById('generateBtn');
+        const copyBtn = document.getElementById('copyBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const importBtn = document.getElementById('importBtn');
+        const exportOutput = document.getElementById('exportOutput');
+        const exportFormatSelect = document.getElementById('exportFormat');
+        const syncBPMBtn = document.getElementById('syncBPMBtn');
+        const progressFill = document.getElementById('progressFill');
+        const hitAreas = {
+            'd': document.querySelector('.hit-area-d'),
+            'f': document.querySelector('.hit-area-f'),
+            'j': document.querySelector('.hit-area-j'),
+            'k': document.querySelector('.hit-area-k')
+        };
+        const noteAreas = {
+            'd': document.getElementById('note-area-d'),
+            'f': document.getElementById('note-area-f'),
+            'j': document.getElementById('note-area-j'),
+            'k': document.getElementById('note-area-k')
+        };
+        const scoreValue = document.getElementById('scoreValue');
+        const comboValue = document.getElementById('comboValue');
+        const accuracyValue = document.getElementById('accuracyValue');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const statusMessage = document.getElementById('statusMessage');
+        
+        // Audio elements
+        let audioElement = null;
+        let audioContext = null;
+        let audioSource = null;
+        let audioBuffer = null;
+        let songDuration = 0;
+        let isPlaying = false;
+        let startTime = 0;
+        let pausedAt = 0;
+        let animationFrame = null;
+        
+        // Note mapping
+        let notes = [];
+        let selectedNote = null;
+        
+        // Test mode variables
+        let testMode = false;
+        let activeNotes = [];
+        let score = 0;
+        let combo = 0;
+        let maxCombo = 0;
+        let hits = { perfect: 0, great: 0, good: 0, miss: 0, total: 0 };
+        let fallSpeed = 200; // pixels per second
+        
+        // Track pressed keys
+        let pressedKeys = {
+            'd': false,
+            'f': false,
+            'j': false,
+            'k': false
+        };
+        
+        // Track hold notes
+        let holdNotes = {
+            'd': null,
+            'f': null,
+            'j': null,
+            'k': null
+        };
+        
+        // Minimum hold duration in milliseconds to register as a hold note
+        const MIN_HOLD_DURATION = 300;
+        
+        // Initialize the application
+        function init() {
+            setupEventListeners();
+            updateButtonStates();
+        }
+        
+        // Set up all event listeners
+        function setupEventListeners() {
+            // Audio file input
+            audioFileInput.addEventListener('change', handleAudioFileChange);
+            
+            // Audio controls
+            playBtn.addEventListener('click', playAudio);
+            pauseBtn.addEventListener('click', pauseAudio);
+            restartBtn.addEventListener('click', restartAudio);
+            playbackRateSelect.addEventListener('change', updatePlaybackRate);
+            
+            // Test mode
+            testModeBtn.addEventListener('click', toggleTestMode);
+            
+            // Key events
+            document.addEventListener('keydown', handleKeyDown);
+            document.addEventListener('keyup', handleKeyUp);
+            
+            // Export controls
+            generateBtn.addEventListener('click', generateOutput);
+            copyBtn.addEventListener('click', copyToClipboard);
+            downloadBtn.addEventListener('click', downloadOutput);
+            importBtn.addEventListener('click', importJSON);
+            syncBPMBtn.addEventListener('click', synchronizeNotesToBPM);
+            
+            // Spacebar to play/pause
+            document.addEventListener('keydown', function(event) {
+                if (event.code === 'Space' && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'INPUT') {
+                    event.preventDefault();
+                    if (isPlaying) {
+                        pauseAudio();
+                    } else {
+                        playAudio();
+                    }
+                }
+                
+                // Delete key to remove selected note
+                if (event.code === 'Delete' && selectedNote !== null) {
+                    const index = notes.findIndex(note => note === selectedNote);
+                    if (index !== -1) {
+                        deleteNote(index);
+                    }
+                }
+            });
+        }
+        
+        // Show status message
+        function showStatusMessage(message) {
+            statusMessage.textContent = message;
+            statusMessage.style.display = 'block';
+            
+            // Remove previous timeout if exists
+            if (statusMessage.timeout) {
+                clearTimeout(statusMessage.timeout);
+            }
+            
+            // Auto-hide after 3 seconds
+            statusMessage.timeout = setTimeout(() => {
+                statusMessage.style.display = 'none';
+            }, 3000);
+        }
+        
+        // Handle audio file loading
+        function handleAudioFileChange(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            showStatusMessage(`Loading audio file: ${file.name}`);
+            
+            // Clean up previous audio if exists
+            if (audioElement) {
+                audioElement.pause();
+                URL.revokeObjectURL(audioElement.src);
+                audioElement = null;
+            }
+            
+            // Create new audio element
+            audioElement = new Audio();
+            const objectUrl = URL.createObjectURL(file);
+            audioElement.src = objectUrl;
+            
+            // Add error handling
+            audioElement.onerror = function(e) {
+                console.error("Error loading audio:", e);
+                showStatusMessage(`Failed to load audio file: ${e.target.error ? e.target.error.message : 'Unknown error'}`);
+                songInfoElement.textContent = "Error loading file";
+            };
+            
+            // Update UI with song info once loaded
+            audioElement.addEventListener('loadedmetadata', () => {
+                songDuration = audioElement.duration;
+                songInfoElement.textContent = `${file.name} (${formatTime(songDuration)})`;
+                showStatusMessage(`Audio loaded successfully: ${file.name}`);
+                
+                // Enable buttons
+                playBtn.disabled = false;
+                pauseBtn.disabled = true;
+                restartBtn.disabled = false;
+                
+                // Update button states
+                updateButtonStates();
+            });
+            
+            // Set up audio context for precise timing
+            setupAudioContext(file);
+        }
+        
+        // Set up Web Audio API context for precise timing
+        function setupAudioContext(file) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const arrayBuffer = e.target.result;
+                    
+                    // Create audio context with error handling
+                    try {
+                        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    } catch (error) {
+                        console.error("Failed to create Audio Context:", error);
+                        showStatusMessage("Your browser doesn't support Web Audio API");
+                        return;
+                    }
+                    
+                    // Decode audio data with error handling
+                    audioContext.decodeAudioData(
+                        arrayBuffer, 
+                        function(buffer) {
+                            audioBuffer = buffer;
+                            songDuration = buffer.duration;
+                            updateButtonStates();
+                        },
+                        function(error) {
+                            console.error("Error decoding audio data:", error);
+                            showStatusMessage("Failed to decode audio file. Try using an MP3 file instead.");
+                        }
+                    );
+                } catch (error) {
+                    console.error("Error in reader.onload:", error);
+                    showStatusMessage(`Error processing audio file: ${error.message}`);
+                }
+            };
+            
+            reader.onerror = function(error) {
+                console.error("FileReader error:", error);
+                showStatusMessage(`Error reading file: ${error.message}`);
+            };
+            
+            // Start reading the file
+            try {
+                reader.readAsArrayBuffer(file);
+            } catch (error) {
+                console.error("Failed to read file as ArrayBuffer:", error);
+                showStatusMessage(`Failed to read audio file: ${error.message}`);
+            }
+        }
+        
+        // Format time in seconds to mm:ss format
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = Math.floor(seconds % 60);
+            return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+        }
+        
+        // Play audio
+        function playAudio() {
+            if (!audioElement) {
+                showStatusMessage("No audio loaded");
+                return;
+            }
+            
+            if (isPlaying) return;
+            
+            try {
+                // Set current time based on pause position
+                if (pausedAt > 0) {
+                    audioElement.currentTime = pausedAt;
+                } else {
+                    audioElement.currentTime = 0;
+                }
+                
+                // Apply playback rate
+                const rate = parseFloat(playbackRateSelect.value);
+                audioElement.playbackRate = rate;
+                
+                // Play with error handling
+                const playPromise = audioElement.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        isPlaying = true;
+                        startTime = Date.now() - (pausedAt * 1000);
+                        
+                        // Start the animation
+                        updateGameAnimation();
+                        
+                        // Update UI
+                        updateButtonStates();
+                    }).catch(error => {
+                        console.error("Error playing audio:", error);
+                        showStatusMessage(`Failed to play audio: ${error.message}`);
+                        isPlaying = false;
+                        updateButtonStates();
+                    });
+                } else {
+                    // Older browsers might not return a promise
+                    isPlaying = true;
+                    startTime = Date.now() - (pausedAt * 1000);
+                    updateGameAnimation();
+                    updateButtonStates();
+                }
+            } catch (error) {
+                console.error("Error in playAudio:", error);
+                showStatusMessage(`Error playing audio: ${error.message}`);
+                isPlaying = false;
+                updateButtonStates();
+            }
+        }
+        
+        // Pause audio
+        function pauseAudio() {
+            if (!audioElement || !isPlaying) return;
+            
+            try {
+                audioElement.pause();
+                pausedAt = audioElement.currentTime;
+                isPlaying = false;
+                
+                // Stop the animation
+                if (animationFrame) {
+                    cancelAnimationFrame(animationFrame);
+                    animationFrame = null;
+                }
+                
+                updateButtonStates();
+            } catch (error) {
+                console.error("Error pausing audio:", error);
+                showStatusMessage(`Error pausing audio: ${error.message}`);
+            }
+        }
+        
+        // Restart audio
+        function restartAudio() {
+            if (!audioElement) return;
+            
+            // Pause first
+            pauseAudio();
+            
+            // Reset position
+            try {
+                audioElement.currentTime = 0;
+                pausedAt = 0;
+                
+                // Reset progress bar
+                progressFill.style.width = '0%';
+                
+                // Reset test mode variables if in test mode
+                if (testMode) {
+                    resetTestMode();
+                }
+                
+                updateButtonStates();
+            } catch (error) {
+                console.error("Error restarting audio:", error);
+                showStatusMessage(`Error restarting audio: ${error.message}`);
+            }
+        }
+        
+        // Update playback rate
+        function updatePlaybackRate() {
+            if (!audioElement) return;
+            
+            try {
+                const rate = parseFloat(playbackRateSelect.value);
+                audioElement.playbackRate = rate;
+            } catch (error) {
+                console.error("Error updating playback rate:", error);
+                showStatusMessage(`Error updating playback rate: ${error.message}`);
+            }
+        }
+        
+        // Update game animation
+        function updateGameAnimation() {
+            if (!isPlaying) return;
+            
+            try {
+                const currentTime = audioElement.currentTime;
+                const duration = audioElement.duration;
+                
+                // Update progress bar
+                const progressPercent = (currentTime / duration) * 100;
+                progressFill.style.width = `${progressPercent}%`;
+                
+                if (testMode) {
+                    // Update notes position in test mode
+                    updateNotesPosition(currentTime);
+                } else {
+                    // In mapping mode, check if we need to spawn notes based on keypresses
+                    spawnMappingNotes(currentTime);
+                }
+                
+                // Request next frame
+                animationFrame = requestAnimationFrame(updateGameAnimation);
+                
+                // Check if song ended
+                if (currentTime >= duration) {
+                    pauseAudio();
+                    restartAudio();
+                    
+                    if (testMode) {
+                        showStatusMessage("Test play completed!");
+                    }
+                }
+            } catch (error) {
+                console.error("Error updating animation:", error);
+                showStatusMessage(`Error updating animation: ${error.message}`);
+            }
+        }
+        
+        // Toggle test mode
+        function toggleTestMode() {
+    testMode = !testMode;
+    
+    if (testMode) {
+        // Initialize test mode
+        testModeBtn.textContent = "Stop Test Play";
+        testPlayStatus.textContent = "Test Mode: On";
+        
+        // First stop any playing audio
+        pauseAudio();
+        
+        // Reset the state BEFORE restarting audio
+        resetTestMode();
+        
+        scoreDisplay.style.display = 'block';
+        
+        // Create speed control if it doesn't exist
+        if (!document.querySelector('.speed-control')) {
+            addSpeedControlToTestMode();
+        }
+        
+        // Make sure audio is loaded before starting
+        if (audioElement) {
+            // Calculate the earliest note time and set the audio just before it
+            if (notes.length > 0) {
+                // Sort notes by time first to ensure we get the earliest
+                const sortedNotes = [...notes].sort((a, b) => a.time - b.time);
+                
+                // Find earliest note
+                const earliestNote = sortedNotes[0];
+                
+                // Set audio to start a bit before the first note
+                const previewTime = Math.max(0, (earliestNote.time - 2000) / 1000);
+                audioElement.currentTime = previewTime;
+                pausedAt = previewTime;
+            } else {
+                // No notes, start from beginning
+                audioElement.currentTime = 0;
+                pausedAt = 0;
+            }
+            
+            // Reset progress bar
+            progressFill.style.width = '0%';
+            
+            // Start playback
+            playAudio();
+        } else {
+            showStatusMessage("Please load an audio file first");
+            testMode = false;
+            testModeBtn.textContent = "Start Test Play";
+            testPlayStatus.textContent = "Test Mode: Off";
+            scoreDisplay.style.display = 'none';
+        }
+    } else {
+        // Exit test mode
+        testModeBtn.textContent = "Start Test Play";
+        testPlayStatus.textContent = "Test Mode: Off";
+        scoreDisplay.style.display = 'none';
+        pauseAudio();
+        
+        // Clear note areas
+        Object.values(noteAreas).forEach(area => {
+            area.innerHTML = '';
+        });
+        
+        showStatusMessage("Test mode ended");
+        
+        // Show results summary
+        showTestResults();
+    }
+}
+
+        
+        function resetTestMode() {
+    // Reset active notes array
+    activeNotes = [];
+    
+    // Reset scoring variables
+    score = 0;
+    combo = 0;
+    maxCombo = 0;
+    hits = { perfect: 0, great: 0, good: 0, miss: 0, total: 0 };
+    updateScoreDisplay();
+    
+    // Clear all note elements
+    Object.values(noteAreas).forEach(area => {
+        area.innerHTML = '';
+    });
+    
+    // IMPORTANT FIX: Reset the 'spawned', 'hit', and 'missed' flags on all notes
+    notes.forEach(note => {
+        note.spawned = false;
+        note.hit = false;
+        note.missed = false;
+        note.element = null;
+    });
+}
+        
+        // Update notes position in test mode
+        function updateNotesPosition(currentTime) {
+    // Current time in ms
+    const currentTimeMs = currentTime * 1000;
+    
+    // Spawn window (how early notes appear before they need to be hit)
+    const spawnWindow = 2000;
+    
+    // Calculate the spawn window - notes that should be visible now
+    const notesToSpawn = notes.filter(note => 
+        note.time > currentTimeMs && 
+        note.time <= currentTimeMs + spawnWindow && 
+        !note.spawned
+    );
+    
+    // Spawn new notes
+    notesToSpawn.forEach(note => {
+        spawnNoteElement(note);
+        note.spawned = true;
+        activeNotes.push(note);
+    });
+    
+    // Update positions of all active notes
+    activeNotes.forEach(note => {
+        if (note.element) {
+            // Calculate position based on time difference
+            const timeDiff = note.time - currentTimeMs;
+            const laneHeight = noteAreas[note.lane].clientHeight;
+            const hitAreaHeight = 50; // Height of hit area in pixels
+            const noteHeight = (note.type === 'hold' && note.duration) ? 
+                note.duration / 1000 * fallSpeed : 30;
+            
+            // Calculate vertical position as percentage
+            // IMPORTANT FIX: We need to calculate the position so that the NOTE BOTTOM (not center)
+            // aligns with the TOP of the hit area when timeDiff = 0
+            
+            // Total lane height minus hit area height
+            const playableHeight = laneHeight - hitAreaHeight;
+            
+            // Calculate percentage of spawn window elapsed (0 to 1)
+            let progress = 1 - (timeDiff / spawnWindow);
+            
+            // Clamp progress between 0 and 1
+            progress = Math.max(0, Math.min(1, progress));
+            
+            // Calculate note position, where:
+            // - At progress = 0 (start), note is at top of lane (-noteHeight to be completely out of view)
+            // - At progress = 1 (hit time), note bottom should be at hit area top
+            const topPosition = (progress * (playableHeight + noteHeight)) - noteHeight;
+            
+            // Convert to percentage of lane height
+            const topPercentage = (topPosition / laneHeight) * 100;
+            
+            // Update position, ensuring it stays within bounds
+            note.element.style.top = `${Math.max(0, Math.min(100 - (noteHeight / laneHeight * 100), topPercentage))}%`;
+            
+            // For hold notes, adjust the height
+            if (note.type === 'hold' && note.duration) {
+                const holdHeight = (note.duration / 1000) * fallSpeed;
+                note.element.style.height = `${holdHeight}px`;
+            }
+            
+            // Check if note is missed
+            if (timeDiff < -200 && !note.hit && !note.missed) {
+                noteMissed(note);
+            }
+        }
+    });
+    
+    // Remove notes that are far past the hit window
+    const notesToRemove = activeNotes.filter(note => 
+        (note.time + (note.duration || 0)) < currentTimeMs - 500
+    );
+    
+    // Remove from active notes and DOM
+    notesToRemove.forEach(note => {
+        if (note.element) {
+            note.element.remove();
+        }
+    });
+    activeNotes = activeNotes.filter(note => !notesToRemove.includes(note));
+}
+        
+        // Spawn a note element in the game area
+        function spawnNoteElement(note) {
+            const noteArea = noteAreas[note.lane];
+            if (!noteArea) return;
+            
+            // Create note element
+            const noteElement = document.createElement('div');
+            noteElement.className = `game-note game-note-${note.lane}`;
+            noteElement.dataset.time = note.time;
+            noteElement.dataset.lane = note.lane;
+            
+            // If it's a hold note, prepare it but don't set height yet
+            if (note.type === 'hold' && note.duration) {
+                noteElement.classList.add('hold-note');
+            }
+            
+            // Initially position at the top (0%)
+            noteElement.style.top = '0%';
+            
+            // Add to DOM
+            noteArea.appendChild(noteElement);
+            
+            // Store reference to DOM element
+            note.element = noteElement;
+        }
+        
+        // When a note is hit
+        function noteHit(note, accuracy) {
+    if (note.hit || note.missed) return;
+    
+    // Mark as hit
+    note.hit = true;
+    
+    // Determine score and judgment based on accuracy
+    let judgment = '';
+    let points = 0;
+    
+    // Adjusted judgment windows
+    if (accuracy <= 50) {
+        judgment = 'PERFECT';
+        points = 100;
+        hits.perfect++;
+    } else if (accuracy <= 120) {
+        judgment = 'GREAT';
+        points = 80;
+        hits.great++;
+    } else if (accuracy <= 200) {
+        judgment = 'GOOD';
+        points = 50;
+        hits.good++;
+    } else if (accuracy <= 300) {
+        judgment = 'BAD';
+        points = 20;
+        hits.good++; // Count as good for simplicity
+    } else {
+        judgment = 'MISS';
+        points = 0;
+        hits.miss++;
+        combo = 0; // Reset combo on miss
+    }
+    
+    // If not a miss, increase combo
+    if (judgment !== 'MISS') {
+        combo++;
+        maxCombo = Math.max(maxCombo, combo);
+    }
+    
+    // Add points to score
+    score += points;
+    hits.total++;
+    
+    // Update score display
+    updateScoreDisplay();
+    
+    // Add visual feedback
+    if (note.element) {
+        // Add a specific class for the judgment
+        note.element.classList.add('hit', `hit-${judgment.toLowerCase()}`);
+        
+        // Remove after animation
+        setTimeout(() => {
+            if (note.element && note.element.parentNode) {
+                note.element.remove();
+            }
+        }, 100);
+    }
+    
+    // Add judgment text
+    showJudgment(note.lane, judgment);
+    
+    // Add hit effect to the hit area
+    const hitArea = hitAreas[note.lane];
+    hitArea.classList.add('hit-effect');
+    setTimeout(() => {
+        hitArea.classList.remove('hit-effect');
+    }, 100);
+}
+        
+        // When a note is missed
+        function noteMissed(note) {
+            if (note.hit || note.missed) return;
+            
+            // Mark as missed
+            note.missed = true;
+            
+            // Reset combo
+            combo = 0;
+            hits.miss++;
+            hits.total++;
+            
+            // Update score display
+            updateScoreDisplay();
+            
+            // Add visual feedback
+            if (note.element) {
+                note.element.classList.add('missed');
+                
+                // Fade out the missed note
+                note.element.style.opacity = '0.3';
+                
+                // Remove after animation
+                setTimeout(() => {
+                    if (note.element && note.element.parentNode) {
+                        note.element.remove();
+                    }
+                }, 200);
+            }
+            
+            // Show miss judgment
+            showJudgment(note.lane, 'MISS');
+        }
+        
+        // Show judgment text
+        function showJudgment(lane, judgment) {
+            const hitArea = hitAreas[lane];
+            const judgmentElement = document.createElement('div');
+            judgmentElement.className = `judgment-text judgment-${judgment.toLowerCase()}`;
+            judgmentElement.textContent = judgment;
+            
+            // Calculate position based on hit area
+            const hitAreaRect = hitArea.getBoundingClientRect();
+            judgmentElement.style.left = `${hitAreaRect.left + hitAreaRect.width / 2}px`;
+            judgmentElement.style.top = `${hitAreaRect.top}px`;
+            judgmentElement.style.transform = 'translateX(-50%)';
+            
+            // Add to DOM
+            document.body.appendChild(judgmentElement);
+            
+            // Remove after animation
+            setTimeout(() => {
+                if (judgmentElement.parentNode) {
+                    judgmentElement.remove();
+                }
+            }, 1000);
+        }
+        
+        // Update score display
+        function updateScoreDisplay() {
+            scoreValue.textContent = score;
+            comboValue.textContent = combo;
+            
+            // Calculate accuracy
+            let accuracy = 0;
+            if (hits.total > 0) {
+                accuracy = ((hits.perfect * 100) + (hits.great * 80) + (hits.good * 50)) / (hits.total * 100) * 100;
+            }
+            accuracyValue.textContent = `${Math.round(accuracy)}%`;
+        }
+        
+        // Handle key press for note input
+        function handleKeyDown(event) {
+            const key = event.key.toLowerCase();
+            
+            // Only process D, F, J, K keys
+            if (!['d', 'f', 'j', 'k'].includes(key)) return;
+            
+            // Prevent default behavior (scrolling, etc.)
+            event.preventDefault();
+            
+            // Check if key is already pressed (avoid repeat events)
+            if (pressedKeys[key]) return;
+            
+            // Mark key as pressed
+            pressedKeys[key] = true;
+            
+            // Add visual feedback
+            const hitArea = hitAreas[key];
+            if (hitArea) {
+                hitArea.classList.add('active');
+            }
+            
+            if (testMode) {
+                // In test mode, check if hit any notes
+                checkNoteHit(key);
+            } else if (isPlaying && audioElement) {
+                // In mapping mode, add a note
+                const time = Math.round(audioElement.currentTime * 1000); // Convert to milliseconds
+                
+                // Record the start of a potential hold
+                holdNotes[key] = {
+                    startTime: time,
+                    noteIndex: null // Will be set if an actual note is created
+                };
+                
+                // Add a normal note right away (will be converted to hold note if held long enough)
+                const noteIndex = addNote(key, time, 'tap');
+                
+                // Link the note to the hold tracking
+                if (holdNotes[key]) {
+                    holdNotes[key].noteIndex = noteIndex;
+                }
+            }
+        }
+        
+        // Handle key release
+        function handleKeyUp(event) {
+            const key = event.key.toLowerCase();
+            
+            // Only process D, F, J, K keys
+            if (!['d', 'f', 'j', 'k'].includes(key)) return;
+            
+            // Mark key as released
+            pressedKeys[key] = false;
+            
+            // Remove visual feedback
+            const hitArea = hitAreas[key];
+            if (hitArea) {
+                hitArea.classList.remove('active');
+            }
+            
+            // Process potential hold note in mapping mode
+            if (!testMode && isPlaying && audioElement && holdNotes[key]) {
+                const endTime = Math.round(audioElement.currentTime * 1000);
+                const startTime = holdNotes[key].startTime;
+                const noteIndex = holdNotes[key].noteIndex;
+                
+                // Calculate hold duration
+                const holdDuration = endTime - startTime;
+                
+                // If held longer than minimum duration, convert to hold note
+                if (holdDuration >= MIN_HOLD_DURATION && noteIndex !== null && noteIndex < notes.length) {
+                    // Update the note type to 'hold' and add duration
+                    notes[noteIndex].type = 'hold';
+                    notes[noteIndex].duration = holdDuration;
+                    
+                    // Update the UI to show this is a hold note
+                    updateNoteList();
+                    showStatusMessage(`Added hold note: ${key.toUpperCase()} (${holdDuration}ms)`);
+                }
+                
+                // Clear the hold note tracking
+                holdNotes[key] = null;
+            }
+        }
+        
+        // Check if a key press hit a note in test mode
+        function checkNoteHit(key) {
+            if (!testMode || !isPlaying) return;
+            
+            const currentTime = audioElement.currentTime * 1000; // Current time in ms
+            
+            // Find notes in this lane that are within hit window
+            const notesInLane = activeNotes.filter(note => 
+                note.lane === key && !note.hit && !note.missed
+            );
+            
+            if (notesInLane.length === 0) return;
+            
+            // Sort by time difference (absolute value) to find closest note to current time
+            notesInLane.sort((a, b) => 
+                Math.abs(a.time - currentTime) - Math.abs(b.time - currentTime)
+            );
+            
+            // Check the closest note
+            const closestNote = notesInLane[0];
+            const timeDiff = Math.abs(closestNote.time - currentTime);
+            
+            // Expanded hit window (300ms total, but with different judgments)
+            if (timeDiff <= 300) {
+                noteHit(closestNote, timeDiff);
+                console.log(`Hit note: ${key.toUpperCase()} with timing diff: ${timeDiff}ms`);
+            }
+        }
+        
+        // Add a note at specified time
+        function addNote(lane, time, type = 'tap') {
+            // Check if a similar note already exists (within 50ms)
+            const existingNoteIndex = notes.findIndex(note => 
+                note.lane === lane && Math.abs(note.time - time) < 50
+            );
+            
+            let newNoteIndex = -1;
+            
+            if (existingNoteIndex !== -1) {
+                // Replace existing note
+                notes[existingNoteIndex].time = time;
+                notes[existingNoteIndex].type = type;
+                if (type === 'hold') {
+                    notes[existingNoteIndex].duration = 0; // Initial duration, will be updated on key release
+                }
+                newNoteIndex = existingNoteIndex;
+                showStatusMessage(`Updated note: ${lane.toUpperCase()} at ${time}ms`);
+            } else {
+                // Add new note
+                const newNote = { time, lane, type };
+                if (type === 'hold') {
+                    newNote.duration = 0; // Initial duration, will be updated on key release
+                }
+                notes.push(newNote);
+                newNoteIndex = notes.length - 1;
+                showStatusMessage(`Added note: ${lane.toUpperCase()} at ${time}ms`);
+                
+                // Sort notes by time
+                notes.sort((a, b) => a.time - b.time);
+                
+                // Find the index of our new note after sorting
+                newNoteIndex = notes.findIndex(note => 
+                    note.lane === lane && note.time === time && note.type === type
+                );
+            }
+            
+            // Update the note list
+            updateNoteList();
+            
+            // Enable generate button if we have notes
+            generateBtn.disabled = notes.length === 0;
+            
+            return newNoteIndex;
+        }
+        
+        // Delete a note by index
+        function deleteNote(index) {
+            if (index < 0 || index >= notes.length) return;
+            
+            const deletedNote = notes[index];
+            notes.splice(index, 1);
+            
+            // Update the note list
+            updateNoteList();
+            
+            showStatusMessage(`Deleted note: ${deletedNote.lane.toUpperCase()} at ${deletedNote.time}ms`);
+            
+            // Disable generate button if no notes
+            generateBtn.disabled = notes.length === 0;
+        }
+        
+        // Update the note list table
+        function updateNoteList() {
+            if (notes.length === 0) {
+                noteListBody.innerHTML = '<tr><td colspan="4">No notes added yet</td></tr>';
+                return;
+            }
+            
+            // Clear existing rows
+            noteListBody.innerHTML = '';
+            
+            // Add a row for each note
+            notes.forEach((note, index) => {
+                const row = document.createElement('tr');
+                
+                // Time cell
+                const timeCell = document.createElement('td');
+                timeCell.textContent = note.time;
+                
+                // Lane cell
+                const laneCell = document.createElement('td');
+                laneCell.textContent = note.lane.toUpperCase();
+                
+                // Type cell
+                const typeCell = document.createElement('td');
+                if (note.type === 'hold' && note.duration > 0) {
+                    typeCell.textContent = `Hold (${Math.round(note.duration / 10) / 100}s)`;
+                } else {
+                    typeCell.textContent = 'Tap';
+                }
+                
+                // Actions cell
+                const actionsCell = document.createElement('td');
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = 'Delete';
+                deleteButton.addEventListener('click', () => deleteNote(index));
+                actionsCell.appendChild(deleteButton);
+                
+                // Add cells to row
+                row.appendChild(timeCell);
+                row.appendChild(laneCell);
+                row.appendChild(typeCell);
+                row.appendChild(actionsCell);
+                
+                // Add row to table
+                noteListBody.appendChild(row);
+            });
+        }
+        
+        // Spawn mapping mode notes for visualization
+        function spawnMappingNotes(currentTime) {
+            // Only relevant if user is mapping (not in test mode)
+            if (testMode) return;
+            
+            const currentTimeMs = currentTime * 1000;
+            
+            // Check if we have any notes to show based on current time
+            const visibleNotes = notes.filter(note => 
+                Math.abs(note.time - currentTimeMs) < 500 &&
+                !note.visibleInMapper
+            );
+            
+            // Add visual indicator for these notes
+            visibleNotes.forEach(note => {
+                note.visibleInMapper = true;
+                
+                // Flash the hit area to show the note
+                const hitArea = hitAreas[note.lane];
+                if (hitArea) {
+                    hitArea.classList.add('hit-effect');
+                    setTimeout(() => {
+                        hitArea.classList.remove('hit-effect');
+                    }, 100);
+                }
+            });
+            
+            // Reset visibility flag for notes that are no longer visible
+            notes.filter(note => 
+                Math.abs(note.time - currentTimeMs) >= 500 &&
+                note.visibleInMapper
+            ).forEach(note => {
+                note.visibleInMapper = false;
+            });
+        }
+        
+        // Generate output based on selected format
+        function generateOutput() {
+            const format = exportFormatSelect.value;
+            
+            switch (format) {
+                case 'json':
+                    generateJSON();
+                    break;
+                case 'csv':
+                    generateCSV();
+                    break;
+                default:
+                    generateJSON();
+            }
+            
+            showStatusMessage(`Generated output in ${format} format`);
+        }
+        
+        // Generate JSON output
+        function generateJSON() {
+            const output = {
+                songId: audioFileInput.files[0]?.name || 'unknown',
+                notes: notes.map(note => {
+                    // For backwards compatibility, simplify tap notes to old format
+                    if (!note.type || note.type === 'tap') {
+                        return { time: note.time, lane: note.lane };
+                    }
+                    // Include full details for hold notes
+                    return { 
+                        time: note.time, 
+                        lane: note.lane, 
+                        type: note.type,
+                        duration: note.duration || 0
+                    };
+                })
+            };
+            
+            exportOutput.value = JSON.stringify(output, null, 2);
+            updateButtonStates();
+        }
+        
+        // Generate CSV format
+        function generateCSV() {
+            let header = 'time,lane,type,duration\n';
+            const rows = notes.map(note => {
+                const type = note.type || 'tap';
+                const duration = (type === 'hold' && note.duration) ? note.duration : 0;
+                return `${note.time},${note.lane},${type},${duration}`;
+            }).join('\n');
+            
+            exportOutput.value = header + rows;
+            updateButtonStates();
+        }
+        
+        // Copy to clipboard
+        function copyToClipboard() {
+            exportOutput.select();
+            document.execCommand('copy');
+            showStatusMessage("Copied to clipboard!");
+        }
+        
+        // Download as file
+        function downloadOutput() {
+            if (!exportOutput.value) {
+                generateOutput();
+            }
+            
+            const format = exportFormatSelect.value;
+            let extension = 'json';
+            let mimeType = 'application/json';
+            
+            if (format === 'csv') {
+                extension = 'csv';
+                mimeType = 'text/csv';
+            }
+            
+            const blob = new Blob([exportOutput.value], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            
+            a.href = url;
+            a.download = `rhythm-game-map-${new Date().getTime()}.${extension}`;
+            a.click();
+            
+            URL.revokeObjectURL(url);
+            showStatusMessage(`Downloaded as ${a.download}`);
+        }
+        
+        // Import JSON data
+        function importJSON() {
+            const input = prompt('Paste your JSON note map data here:');
+            if (!input) return;
+            
+            try {
+                const data = JSON.parse(input);
+                
+                // Validate the data structure
+                if (!data.notes || !Array.isArray(data.notes)) {
+                    throw new Error('Invalid note map format. Missing notes array.');
+                }
+                
+                // Update the notes array
+                notes = data.notes.map(note => {
+                    // Convert to standard format
+                    const standardNote = {
+                        time: note.time,
+                        lane: note.lane.toLowerCase()
+                    };
+                    
+                    // Add type and duration if present
+                    if (note.type) {
+                        standardNote.type = note.type;
+                    }
+                    
+                    if (note.duration) {
+                        standardNote.duration = note.duration;
+                    }
+                    
+                    return standardNote;
+                });
+                
+                // Sort notes by time
+                notes.sort((a, b) => a.time - b.time);
+                
+                // Update the UI
+                updateNoteList();
+                
+                // Update export textarea
+                exportOutput.value = JSON.stringify(data, null, 2);
+                
+                showStatusMessage(`Successfully imported ${notes.length} notes`);
+                updateButtonStates();
+            } catch (error) {
+                console.error("Error importing note map:", error);
+                showStatusMessage(`Error importing note map: ${error.message}`);
+            }
+        }
+        
+        // Function to synchronize notes if BPM is known
+        function synchronizeNotesToBPM() {
+            const bpmInput = prompt('Enter the BPM (Beats Per Minute) of the song:');
+            if (!bpmInput) return;
+            
+            const bpm = parseFloat(bpmInput);
+            if (isNaN(bpm) || bpm <= 0) {
+                showStatusMessage('Please enter a valid BPM value');
+                return;
+            }
+            
+            // Calculate beat duration in milliseconds
+            const beatDuration = 60000 / bpm;
+            
+            // Quantize each note to the nearest beat
+            notes.forEach(note => {
+                const beatNumber = Math.round(note.time / beatDuration);
+                note.time = Math.round(beatNumber * beatDuration);
+            });
+            
+            // Sort notes by time
+            notes.sort((a, b) => a.time - b.time);
+            
+            // Update the UI
+            updateNoteList();
+            
+            showStatusMessage(`Notes synchronized to ${bpm} BPM`);
+        }
+        
+        // Update button states based on audio state
+        function updateButtonStates() {
+            const hasAudio = !!audioElement;
+            
+            playBtn.disabled = !hasAudio || isPlaying;
+            pauseBtn.disabled = !hasAudio || !isPlaying;
+            restartBtn.disabled = !hasAudio;
+            
+            generateBtn.disabled = notes.length === 0;
+            copyBtn.disabled = !exportOutput.value;
+            downloadBtn.disabled = !exportOutput.value;
+            
+            testModeBtn.disabled = !hasAudio;
+        }
+        
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
