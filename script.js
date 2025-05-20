@@ -149,11 +149,15 @@ function createRhythmGameElements() {
         noteArea.className = 'rhythm-note-area';
         noteArea.id = `rhythm-note-area-${lane}`;
         
+        const hitLine = document.createElement('div');
+        hitLine.className = 'rhythm-hit-line';
+        
         const hitArea = document.createElement('div');
         hitArea.className = `rhythm-hit-area rhythm-hit-area-${lane}`;
         hitArea.textContent = lane.toUpperCase();
         
         laneDiv.appendChild(noteArea);
+        laneDiv.appendChild(hitLine); // Add hit line
         laneDiv.appendChild(hitArea);
         laneContainer.appendChild(laneDiv);
     });
@@ -422,7 +426,7 @@ function updateRhythmNotes(currentTime) {
     // Spawn window
     const spawnWindow = 2000;
     
-    // Spawn new notes (both regular and hold)
+    // Spawn new notes
     const notesToSpawn = rhythmNotes.filter(note => 
         note.time > currentTime && 
         note.time <= currentTime + spawnWindow && 
@@ -442,25 +446,51 @@ function updateRhythmNotes(currentTime) {
             const noteArea = document.getElementById(`rhythm-note-area-${note.lane}`);
             const laneHeight = noteArea.clientHeight;
             const hitAreaHeight = 80;
-            const playableHeight = laneHeight - hitAreaHeight;
+            const playableHeight = laneHeight;
             
+            // Calculate progress - when timeDiff = 0, the note should be at the hit line
+            // When timeDiff = spawnWindow, the note should be at the top
             let progress = 1 - (timeDiff / spawnWindow);
             progress = Math.max(0, Math.min(1, progress));
             
-            const topPosition = (progress * (playableHeight + 35)) - 35;
+            // Position based on progress
+            const topPosition = progress * playableHeight;
             const topPercentage = (topPosition / laneHeight) * 100;
             
             note.element.style.top = `${Math.max(0, Math.min(100, topPercentage))}%`;
             
-            // Check if note is missed (for regular notes or hold note start)
-            if (!note.isHold && timeDiff < -200 && !note.hit && !note.missed) {
-                rhythmNoteMissed(note);
-            } else if (note.isHold && !note.holdStarted && timeDiff < -200) {
-                rhythmNoteMissed(note);
+            // Check if note is missed
+            if (timeDiff < -350 && !note.hit && !note.missed) {
+                if (!note.isHold) {
+                    // Regular note is missed
+                    rhythmNoteMissed(note);
+                } else if (!note.holdStarted) {
+                    // Hold note start is missed
+                    rhythmNoteMissed(note);
+                }
             }
         }
     });
     
+    // Handle hold notes
+    updateHoldNotes(currentTime);
+    
+    // Remove notes that are far past
+    const notesToRemove = rhythmActiveNotes.filter(note => {
+        if (note.isHold) {
+            return (note.hit || note.missed) && !note.holding;
+        } else {
+            return note.time < currentTime - 500;
+        }
+    });
+    
+    notesToRemove.forEach(note => {
+        if (note.element) note.element.remove();
+    });
+    
+    rhythmActiveNotes = rhythmActiveNotes.filter(note => !notesToRemove.includes(note));
+}
+function updateHoldNotes(currentTime) {
     // Check hold notes that are being held but key is released
     rhythmHoldNotes.forEach(note => {
         if (note.holding && !rhythmHeldKeys[note.lane]) {
@@ -483,7 +513,7 @@ function updateRhythmNotes(currentTime) {
     
     // Check for hold notes that have passed their end time
     rhythmHoldNotes.forEach(note => {
-        if (currentTime > note.endTime + 200 && note.holding) {
+        if (currentTime > note.endTime + 350 && note.holding) {
             // Hold note timed out
             note.holding = false;
             note.missed = true;
@@ -500,24 +530,27 @@ function updateRhythmNotes(currentTime) {
         }
     });
     
-    // Remove notes that are far past
-    const notesToRemove = rhythmActiveNotes.filter(note => {
-        if (note.isHold) {
-            return (note.hit || note.missed) && !note.holding;
+    // Update visual feedback for active holds
+    ['d', 'f', 'j', 'k'].forEach(lane => {
+        const hitArea = document.querySelector(`.rhythm-hit-area-${lane}`);
+        if (!hitArea) return;
+        
+        const hasActiveHold = rhythmHoldNotes.some(note => 
+            note.lane === lane && note.holding
+        );
+        
+        if (hasActiveHold && rhythmHeldKeys[lane]) {
+            if (!hitArea.classList.contains('holding')) {
+                hitArea.classList.add('holding');
+            }
         } else {
-            return note.time < currentTime - 500;
+            hitArea.classList.remove('holding');
         }
     });
-    
-    notesToRemove.forEach(note => {
-        if (note.element) note.element.remove();
-    });
-    rhythmActiveNotes = rhythmActiveNotes.filter(note => !notesToRemove.includes(note));
     
     // Clean up completed hold notes
     rhythmHoldNotes = rhythmHoldNotes.filter(note => note.holding);
 }
-
 function spawnRhythmNote(note) {
     const noteArea = document.getElementById(`rhythm-note-area-${note.lane}`);
     if (!noteArea) return;
@@ -603,7 +636,34 @@ function handleRhythmKeyDown(event) {
     // Check for note hit (both regular and hold notes)
     checkRhythmNoteHit(key);
 }
-
+function checkRhythmNoteHit(key) {
+    const currentTime = rhythmAudio.currentTime * 1000;
+    
+    const notesInLane = rhythmActiveNotes.filter(note => 
+        note.lane === key && !note.hit && !note.missed
+    );
+    
+    if (notesInLane.length === 0) return;
+    
+    // Sort notes by how close they are to the hit point
+    notesInLane.sort((a, b) => {
+        // Calculate how close each note is to the hit time
+        // For regular notes, we use currentTime
+        // For hold notes, we use the start time (note.time)
+        const aTimeDiff = Math.abs(a.time - currentTime);
+        const bTimeDiff = Math.abs(b.time - currentTime);
+        return aTimeDiff - bTimeDiff;
+    });
+    
+    const closestNote = notesInLane[0];
+    const timeDiff = Math.abs(closestNote.time - currentTime);
+    
+    // Wider hit window (350ms) for better playability
+    if (timeDiff <= 350) {
+        console.log(`Hit note with accuracy: ${timeDiff}ms`);
+        rhythmNoteHit(closestNote, timeDiff);
+    }
+}
 function handleRhythmKeyUp(event) {
     if (!rhythmGameActive) return;
     
@@ -1042,7 +1102,18 @@ document.addEventListener('keydown', function(event) {
         }
     }
 });
-
+function addHitLinesToLanes() {
+    const lanes = document.querySelectorAll('.rhythm-game-lane');
+    
+    lanes.forEach(lane => {
+        // Check if hit line already exists
+        if (!lane.querySelector('.rhythm-hit-line')) {
+            const hitLine = document.createElement('div');
+            hitLine.className = 'rhythm-hit-line';
+            lane.appendChild(hitLine);
+        }
+    });
+}
 // Create the letters
 const animationContainer = document.getElementById('animation-container');
 
