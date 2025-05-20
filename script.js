@@ -203,52 +203,6 @@ function createRhythmGameElements() {
         </div>
     `;
     document.body.appendChild(endOverlay);
-    
-    // Add rhythm game animations to head
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes screenShake {
-            0% { transform: translateX(0); }
-            25% { transform: translateX(-2px); }
-            50% { transform: translateX(2px); }
-            75% { transform: translateX(-1px); }
-            100% { transform: translateX(0); }
-        }
-        
-        @keyframes scoreUpdate {
-            0% { transform: scale(1); color: inherit; }
-            50% { transform: scale(1.2); color: #4caf50; }
-            100% { transform: scale(1); color: inherit; }
-        }
-        
-        @keyframes comboMilestone {
-            0% { transform: scale(1); }
-            25% { transform: scale(1.3) rotate(-5deg); color: #ffeb3b; }
-            50% { transform: scale(1.3) rotate(5deg); color: #ffeb3b; }
-            75% { transform: scale(1.3) rotate(-2deg); color: #ffeb3b; }
-            100% { transform: scale(1) rotate(0deg); color: inherit; }
-        }
-        
-        @keyframes keyRipple {
-            0% { 
-                transform: translate(-50%, -50%) scale(0); 
-                opacity: 1; 
-            }
-            100% { 
-                transform: translate(-50%, -50%) scale(4); 
-                opacity: 0; 
-            }
-        }
-        
-        @keyframes countdownPulse {
-            0% { transform: scale(0.5); opacity: 0; }
-            50% { transform: scale(1.2); opacity: 1; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-    `;
-    document.head.appendChild(style);
-    
-    // Add keyboard event listeners
     document.addEventListener('keydown', handleRhythmKeyDown);
     document.addEventListener('keyup', handleRhythmKeyUp);
 }
@@ -780,7 +734,7 @@ function rhythmNoteHit(note, accuracy) {
             showRhythmJudgment(note.lane, judgment);
             
             // Add screen shake for perfect hold starts
-            if (judgment === 'PERFECT') {
+            if (judgment === 'MISS') {
                 addScreenShake();
             }
         }
@@ -800,7 +754,7 @@ function rhythmNoteHit(note, accuracy) {
         updateRhythmScoreDisplay();
         showRhythmJudgment(note.lane, judgment);
         
-        if (judgment === 'PERFECT') {
+        if (judgment === 'MISS') {
             addScreenShake();
         }
         
