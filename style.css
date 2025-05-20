@@ -600,6 +600,9 @@ body {
     display: none; /* Initially hidden */
     flex-direction: column;
     gap: 20px;
+    overflow: visible; /* Ensure overflow is visible */
+    width: 350px; /* Fixed width to ensure enough space */
+    pointer-events: all; /* Ensure it catches all events */
 }
 
 /* Horizontal card styling */
@@ -610,18 +613,20 @@ body {
     border-radius: 10px;
     backdrop-filter: blur(5px);
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
-    transform: translateX(25vw);
-    transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), 
+    transform: translateX(100%); /* Start fully off-screen */
+    transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), 
                 box-shadow 0.3s ease;
     overflow: hidden;
     cursor: pointer;
     border: 2px solid rgba(255, 255, 255, 0.2);
+    position: relative; /* Ensure proper positioning */
+    will-change: transform; /* Performance optimization */
 }
 
 .horizontal-card:hover {
     box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
     background-color: rgba(255, 255, 255, 0.25);
-    transform: translateX(-10px) !important;
+    transform: translateX(-10px); /* Move slightly left on hover */
 }
 
 .horizontal-card-inner {
@@ -952,12 +957,12 @@ body {
 
 /* Integrated Rhythm Game Styles - No Overlay Version */
 
-/* Game lanes that slide in from right */
 .rhythm-lane-container {
     position: fixed;
     top: 50%;
     left: 50%;
-    transform: scale(0); /* Initially scaled to 0 */
+    /* Fix the transform to properly center and handle scaling */
+    transform: translate(-50%, -50%) scale(0); 
     width: 600px;
     height: 70%;
     display: flex;
@@ -967,10 +972,11 @@ body {
 }
 
 .rhythm-lane-container.active {
-    transform: scale(1); /* Scale to full size when active */
-    right: auto; /* Remove the right property to center it */
+    /* When active, maintain the centering but scale to 1 */
+    transform: translate(-50%, -50%) scale(1);
+    /* Remove any right positioning */
+    right: auto;
 }
-
 /* Lanes with your website's style */
 .rhythm-game-lane {
     flex: 1;

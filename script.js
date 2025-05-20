@@ -1957,19 +1957,28 @@ function showHorizontalCards() {
     // Make container visible
     horizontalCardsContainer.style.display = 'flex';
     
+    // Force reflow before animations
+    void horizontalCardsContainer.offsetHeight;
+    
     // Animate each existing card
     horizontalCards.forEach((card, index) => {
-        // Set initial position (off-screen to the right)
-        card.style.transform = 'translateX(100vw)';
-        card.style.transitionDelay = `${index * 100}ms`;
+        // Set initial position (fully off-screen to the right)
+        card.style.transform = 'translateX(100%)';
+        card.style.opacity = '1'; // Ensure it's visible
+        
+        // Clear any existing transition delay
+        card.style.transitionDelay = '';
         
         // Force reflow
         void card.offsetHeight;
         
-        // Animate in
+        // Set the delay before applying the transform
+        card.style.transitionDelay = `${index * 100}ms`;
+        
+        // Apply the transform after a slight delay for DOM to update
         setTimeout(() => {
             card.style.transform = 'translateX(0)';
-        }, 50 + (index * 100));
+        }, 10);
     });
 }
 
@@ -1979,17 +1988,25 @@ function hideHorizontalCards() {
     const horizontalCardsContainer = document.querySelector('.horizontal-cards-container');
     
     horizontalCards.forEach((card, index) => {
-        setTimeout(() => {
-            card.style.transform = 'translateX(100vw)';
-        }, index * 50);
+        // Clear any existing transition delay
+        card.style.transitionDelay = `${index * 50}ms`;
+        
+        // Move cards off screen to the right
+        card.style.transform = 'translateX(100%)';
     });
     
     // Hide container after animation completes
+    const maxDelay = horizontalCards.length * 50 + 500;
     setTimeout(() => {
         if (horizontalCardsContainer) {
             horizontalCardsContainer.style.display = 'none';
+            
+            // Reset all cards for next time
+            horizontalCards.forEach(card => {
+                card.style.transitionDelay = '';
+            });
         }
-    }, (horizontalCards.length * 50) + 500);
+    }, maxDelay);
 }
 
 // UPDATED resetInterface function using class system
