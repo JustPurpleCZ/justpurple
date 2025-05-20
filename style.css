@@ -1,0 +1,1858 @@
+body {
+    margin: 0;
+    padding: 0;
+    background-color: #0066ff;
+    font-family: monospace;
+    position: relative;
+    min-height: 200vh; /* Make the page scrollable */
+    overflow-x: hidden;
+}
+
+/* Card container styles */
+.cards-container {
+    position: fixed;
+    bottom: 40px;
+    left: 0;
+    width: 100%;
+    height: 260px; /* Enough height for cards + hover effect */
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+}
+
+.cards-container.visible {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.card.scrolled {
+    transform: translateY(0);
+}
+
+.card:hover {
+    transform: translateY(-20px);
+    box-shadow: 1px 1px 25px 10px rgba(146, 148, 248, 0.4);
+}
+
+/* Active card styles */
+.card.active {
+    position: fixed;
+    width: 500px;
+    height: 400px;
+    z-index: 20;
+    transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1),
+            width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1),
+            height 0.8s cubic-bezier(0.34, 1.56, 0.64, 1),
+            top 0.8s cubic-bezier(0.34, 1.56, 0.64, 1),
+            left 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.card.active:hover {
+    transform: none;
+}
+
+.card {
+    transform: translateY(300px);
+    position: absolute;
+    width: 180px;
+    height: 240px;
+    bottom: 0;
+    perspective: 1000px;
+    cursor: pointer;
+    z-index: 1;
+    border-radius: 15px;
+    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+            left 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+            width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+            height 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+            box-shadow 0.5s;
+}
+
+/* Card inner container with masking for glint */
+.card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.8s;
+    transform-style: preserve-3d;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    will-change: transform;
+    overflow: hidden;
+}
+
+/* Improved glint effect contained within card-inner */
+.card-inner::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -150%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        to right,
+        transparent 0%,
+        rgba(255, 255, 255, 0.05) 20%,
+        rgba(255, 255, 255, 0.2) 40%,
+        rgba(255, 255, 255, 0.2) 60%,
+        rgba(255, 255, 255, 0.05) 80%,
+        transparent 100%
+    );
+    transform: skewX(-25deg);
+    z-index: 3;
+    transition: left 500ms ease;
+    pointer-events: none;
+}
+
+.card:hover .card-inner::before {
+    left: 150%;
+}
+
+/* Card front and back - ensure they fill the entire card-inner */
+.card-front, .card-back {
+    position: absolute;
+    width: calc(100% - 4px);
+    height: calc(100% - 4px);
+    backface-visibility: hidden;
+    border-radius: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(102, 51, 204, 1);
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    padding: 0px;
+    color: white;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* Make sure the active card's inner container also has no overflow constraint */
+.card.active .card-inner {
+    overflow: visible;
+    transform: rotateY(180deg);
+}
+
+.card.active .card-inner::before {
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* Cancel the hover animation for active cards */
+.card.active:hover .card-inner::before {
+    left: -150%;
+    opacity: 0;
+    visibility: hidden;
+}
+
+.card-back {
+    transform: rotateY(180deg);
+    text-align: center;
+}
+
+/* Card logo */
+.card-logo {
+    width: 60px;
+    height: 60px;
+    margin-top: 20px;
+    background-color: rgba(153, 0, 255, 1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 15px rgba(153, 0, 255, 0.7);
+}
+
+.card-logo svg {
+    width: 36px;
+    height: 36px;
+}
+
+/* Processing state - prevent multiple clicks */
+.card.processing {
+    pointer-events: none;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 992px) {
+    .card {
+        width: 150px;
+        height: 200px;
+    }
+
+    .card.active {
+        width: 90%;
+        max-width: 400px;
+        height: 350px;
+    }
+}
+
+@media screen and (max-width: 600px) {
+    .card {
+        width: 120px;
+        height: 170px;
+    }
+
+    .card-logo {
+        width: 40px;
+        height: 40px;
+    }
+
+    .card-logo svg {
+        width: 24px;
+        height: 24px;
+    }
+}
+
+.gradient-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    background: linear-gradient(-45deg, #0066ff, #9900ff, #7700cc, #9900ff);
+    background-size: 400% 400%;
+    transition: opacity 1.5s ease-out;
+    z-index: 1;
+}
+
+.gradient-overlay.active {
+    opacity: 0.8;
+    animation: gradient 15s ease infinite;
+}
+
+@keyframes gradient {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+/* Container for the name animation */
+#animation-container {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: center;
+    align-items: center;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+    white-space: nowrap;
+}
+
+/* Scrolled state for the animation container */
+#animation-container.scrolled {
+    top: 40px;
+    left: 80px;
+    transform: translate(0, 0) scale(0.4);
+    justify-content: flex-start;
+}
+
+#tagline-container {
+    margin-top: 60px;
+    font-size: 24px;
+    color: white;
+    font-family: monospace;
+    letter-spacing: 2px;
+    text-align: right;
+    width: 90vw;
+    max-width: 600px;
+    min-height: 30px;
+    opacity: 0;
+    transition: opacity 0.5s ease, transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, 100px);
+    z-index: 10;
+}
+
+#tagline-container.scrolled {
+    opacity: 0 !important;
+    transform: translate(-50%, 50px) scale(0.6);
+    pointer-events: none;
+    visibility: hidden;
+    transition: opacity 0.3s ease, transform 0.5s ease, visibility 0.3s;
+}
+
+/* New content containers that slide in when scrolling */
+.content-container {
+    position: fixed;
+    width: 90vw;
+    height: 80vh;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 10vh;
+    z-index: 5;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.6s ease-in-out;
+}
+
+.content-container.visible {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.circular-image {
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.2);
+    margin-bottom: -100vh;
+    transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+    animation: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.circular-image.scrolled {
+    margin: 0;
+    animation: spin 20s linear infinite;
+    cursor: pointer;
+    z-index: 20;
+}
+
+.circular-image img {
+    height: 300px;
+    width: auto;
+}
+
+.circular-image.expanded {
+    width: 800px;  /* Make it much larger */
+    height: 800px;
+    position: fixed;
+    top: 50%;
+    left: -300px;  /* Position it mostly off-screen to the left */
+    transform: translate(0, -50%);  /* Only center vertically */
+    transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 30;
+}
+
+.circular-image.expanded img {
+    width: 800px;   /* Match container size */
+    height: 800px;
+    object-fit: cover;  /* Ensure image covers the entire circle */
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.content-box {
+    width: 500px;
+    max-width: 50vw;
+    height: 30vh;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 30px;
+    backdrop-filter: blur(10px);
+    transform: translateY(100vh);
+    transition: transform 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.2);
+    color: white;
+    overflow: auto;
+}
+
+.content-box.scrolled {
+    transform: translateY(0);
+}
+
+.content-box h2 {
+    font-size: 1.8em;
+    margin-bottom: 20px;
+    font-weight: normal;
+    letter-spacing: 2px;
+}
+
+.content-box p {
+    font-size: 1em;
+    line-height: 1.6;
+    margin-bottom: 15px;
+}
+
+/* Bubbles container */
+#bubbles-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 3;
+}
+
+.bubble-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.15s ease-out;
+}
+
+#bubble-layer-front {
+    z-index: 5;
+}
+
+#bubble-layer-middle {
+    z-index: 4;
+}
+
+#bubble-layer-back {
+    z-index: 3;
+}
+
+.bubble {
+    position: fixed;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+    transform: translate(0, 0);
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+
+#bubble-layer-back .bubble {
+    background-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
+}
+
+#bubble-layer-middle .bubble {
+    background-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.25);
+}
+
+#bubble-layer-front .bubble {
+    background-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
+}
+
+.bubble.move-in {
+    transition: transform 2.5s ease-out, opacity 0.5s ease;
+}
+
+.bubble.float {
+    animation: float 8s ease-in-out infinite;
+}
+
+@keyframes float {
+    0% {
+        transform: translate(var(--float-x), var(--float-y));
+    }
+    33% {
+        transform: translate(calc(var(--float-x) + 15px), calc(var(--float-y) + 15px));
+    }
+    66% {
+        transform: translate(calc(var(--float-x) - 15px), calc(var(--float-y) - 10px));
+    }
+    100% {
+        transform: translate(var(--float-x), var(--float-y));
+    }
+}
+
+/* Rhomboids menu - SIMPLIFIED SYSTEM */
+#rhomboids-container {
+    position: fixed;
+    right: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 5;
+}
+
+/* Default state - rhomboids are hidden off-screen */
+.rhomboid {
+    position: absolute;
+    width: 200px;
+    height: 120px;
+    background-color: rgba(255, 255, 255, 0.15);
+    clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+    transform: translateX(400px); /* Hidden off-screen to the right */
+    transition: all 1.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    right: 0;
+    pointer-events: all;
+    cursor: pointer;
+}
+
+/* Active state - rhomboids slide into view */
+.rhomboid.active {
+    transform: translateX(0);
+    /* Remove the animation from here temporarily to debug */
+}
+
+/* Add wave animation after rhomboid appears */
+.rhomboid.active.wave {
+    animation: rhomboid-wave 5s ease-in-out infinite;
+}
+
+.rhomboid.active:hover {
+    right: 2vw;
+    transition: right 0.3s ease;
+}
+
+@keyframes rhomboid-wave {
+    0% {
+        transform: translateX(0);
+    }
+    50% {
+        transform: translateX(-20px);
+    }
+    100% {
+        transform: translateX(0);
+    }
+}
+
+/* Return button default state - hidden off-screen */
+#return-button {
+    position: fixed;
+    top: 5%;
+    right: 0;
+    width: 200px;
+    height: 120px;
+    background-color: rgba(255, 255, 255, 0.15);
+    clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+    transform: translateX(400px); /* Hidden off-screen */
+    transition: all 1.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: all;
+    cursor: pointer;
+    z-index: 40;
+}
+
+/* Return button active state - slides into view */
+#return-button.active {
+    transform: translateX(0);
+}
+
+#return-button:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+    transition: background-color 0.3s ease;
+}
+
+#return-button.active:hover {
+    right: 2vw;
+    transition: right 0.3s ease;
+}
+
+#return-button .svg-path {
+    opacity: 1;
+    stroke: white;
+    stroke-width: 0.5; /* Changed from 2 to 0.5 to match other rhomboids */
+    stroke-linecap: circle;
+    stroke-linejoin: circle;
+}
+#return-button.active .svg-path {
+    opacity: 1;
+}
+
+/* SVG icon styling */
+.svg-icon-container {
+    position: absolute;
+    width: 120px;
+    height: 120px;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.svg-icon {
+    width: 100%;
+    height: 100%;
+}
+
+.svg-path {
+    fill: none;
+    stroke: white;
+    stroke-width: 0.5;
+    stroke-linecap: circle;
+    stroke-linejoin: circle;
+    stroke-dasharray: 0;
+    stroke-dashoffset: 0;
+    opacity: 0; /* All paths start hidden */
+    transition: opacity 0.3s ease;
+}
+
+/* Horizontal cards container */
+.horizontal-cards-container {
+    position: fixed;
+    top: 50%;
+    right: 40px;
+    transform: translateY(-50%);
+    z-index: 30;
+    display: none; /* Initially hidden */
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Horizontal card styling */
+.horizontal-card {
+    width: 300px;
+    height: 100px;
+    background-color: rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    backdrop-filter: blur(5px);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+    transform: translateX(25vw);
+    transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), 
+                box-shadow 0.3s ease;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.horizontal-card:hover {
+    box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+    background-color: rgba(255, 255, 255, 0.25);
+    transform: translateX(-10px) !important;
+}
+
+.horizontal-card-inner {
+    padding: 15px;
+    color: white;
+}
+
+.horizontal-card h3 {
+    margin: 0 0 10px 0;
+    font-size: 1.2em;
+}
+
+.horizontal-card p {
+    margin: 0;
+    font-size: 0.9em;
+    opacity: 0.8;
+}
+
+/* Letter and triangle styles */
+.letter {
+    display: grid;
+    grid-template-rows: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
+    margin: 0.5vw;
+}
+
+.cell {
+    position: relative;
+    aspect-ratio: 1/1;
+    width: calc(2vw + 15.5px);
+    height: calc(2vw + 15.5px);
+}
+
+.triangle {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    transform-origin: center;
+    transition: opacity 0.2s ease;
+}
+
+.triangle-top-left {
+    border-left: calc(2vw + 16px) solid white;
+    border-bottom: calc(2vw + 16px) solid transparent;
+    transform-origin: 50% 50%;
+}
+
+.triangle-top-right {
+    border-top: calc(2vw + 16px) solid white;
+    border-left: calc(2vw + 16px) solid transparent;
+    transform-origin: 50% 50%;
+}
+
+.triangle-bottom-left {
+    border-bottom: calc(2vw + 16px) solid white;
+    border-right: calc(2vw + 16px) solid transparent;
+    transform-origin: 50% 50%;
+}
+
+.triangle-bottom-right {
+    border-right: calc(2vw + 16px) solid white;
+    border-top: calc(2vw + 16px) solid transparent;
+    transform-origin: 50% 50%;
+}
+
+.visible {
+    opacity: 1;
+    animation: none;
+}
+
+.rotate-0 { transform: rotate(0deg); opacity: 1; }
+.rotate-90 { transform: rotate(90deg); opacity: 1; }
+.rotate-180 { transform: rotate(180deg); opacity: 1; }
+.rotate-270 { transform: rotate(270deg); opacity: 1; }
+.rotate-360 { transform: rotate(0deg); opacity: 1; }
+
+.char-slot {
+    display: inline-block;
+    width: 1em;
+    text-align: center;
+}
+
+/* Scroll progress indicator */
+.scroll-indicator {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: white;
+    font-family: monospace;
+    letter-spacing: 2px;
+    text-align: center;
+    opacity: 0.8;
+    z-index: 20;
+    transition: opacity 0.5s ease;
+}
+
+.scroll-icon {
+    width: 30px;
+    height: 50px;
+    border: 2px solid white;
+    border-radius: 15px;
+    margin: 0 auto 5px;
+    position: relative;
+}
+
+.scroll-icon::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    width: 6px;
+    height: 6px;
+    background: white;
+    border-radius: 50%;
+    transform: translateX(-50%);
+    animation: scrollDown 2s infinite;
+}
+
+@keyframes scrollDown {
+    0% {
+        transform: translate(-50%, 0);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(-50%, 20px);
+        opacity: 0;
+    }
+}
+
+/* Responsive styles */
+@media screen and (max-width: 768px) {
+    .circular-image {
+        width: 200px;
+        height: 200px;
+        margin-right: 15px;
+    }
+    
+    .circular-image img {
+        height: 200px;
+    }
+    
+    .circular-image.expanded {
+        width: 300px;
+        height: 300px;
+        left: 25%;
+    }
+    
+    .circular-image.expanded img {
+        height: 300px;
+    }
+    
+    .content-box {
+        width: 60vw;
+        height: 350px;
+        padding: 20px;
+    }
+    
+    #animation-container.scrolled {
+        top: 20px;
+        left: 40px;
+        transform: translate(0, 0) scale(0.3);
+    }
+    
+    #animation-container {
+        flex-wrap: nowrap;
+        white-space: nowrap;
+        width: auto;
+    }
+    
+    .cell {
+        width: calc(3vw + 10px);
+        height: calc(3vw + 10px);
+    }
+    
+    .triangle-top-left {
+        border-left: calc(3vw + 11px) solid white;
+        border-bottom: calc(3vw + 11px) solid transparent;
+    }
+    
+    .triangle-top-right {
+        border-top: calc(3vw + 11px) solid white;
+        border-left: calc(3vw + 11px) solid transparent;
+    }
+    
+    .triangle-bottom-left {
+        border-bottom: calc(3vw + 11px) solid white;
+        border-right: calc(3vw + 11px) solid transparent;
+    }
+    
+    .triangle-bottom-right {
+        border-right: calc(3vw + 11px) solid white;
+        border-top: calc(3vw + 11px) solid transparent;
+    }
+    
+    .horizontal-card {
+        width: 200px;
+        height: 80px;
+    }
+    
+    .horizontal-card h3 {
+        font-size: 1em;
+    }
+    
+    .horizontal-card p {
+        font-size: 0.8em;
+    }
+    
+    .horizontal-cards-container {
+        right: 20px;
+    }
+    
+    #return-button {
+        width: 160px;
+        height: 100px;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .content-container {
+        flex-direction: column;
+        padding-top: 120px;
+    }
+    
+    .circular-image {
+        width: 150px;
+        height: 150px;
+        margin-right: 0;
+        margin-bottom: 20px;
+    }
+    
+    .circular-image img {
+        height: 150px;
+    }
+    
+    .circular-image.expanded {
+        width: 220px;
+        height: 220px;
+        left: 20%;
+    }
+    
+    .circular-image.expanded img {
+        height: 220px;
+    }
+    
+    .content-box {
+        width: 90vw;
+        max-width: 90vw;
+        height: 300px;
+    }
+    
+    #animation-container.scrolled {
+        top: 15px;
+        left: 30px;
+        transform: translate(0, 0) scale(0.25);
+    }
+    
+    .cell {
+        width: calc(4vw + 6px);
+        height: calc(4vw + 6px);
+    }
+    
+    .triangle-top-left {
+        border-left: calc(4vw + 6px) solid white;
+        border-bottom: calc(4vw + 6px) solid transparent;
+    }
+    
+    .triangle-top-right {
+        border-top: calc(4vw + 6px) solid white;
+        border-left: calc(4vw + 6px) solid transparent;
+    }
+    
+    .triangle-bottom-left {
+        border-bottom: calc(4vw + 6px) solid white;
+        border-right: calc(4vw + 6px) solid transparent;
+    }
+    
+    .triangle-bottom-right {
+        border-right: calc(4vw + 6px) solid white;
+        border-top: calc(4vw + 6px) solid transparent;
+    }
+    
+    .horizontal-cards-container {
+        right: 20px;
+    }
+    
+    .horizontal-card {
+        width: 160px;
+        height: 70px;
+    }
+    
+    .horizontal-card h3 {
+        font-size: 0.9em;
+        margin-bottom: 5px;
+    }
+    
+    .horizontal-card p {
+        font-size: 0.7em;
+    }
+    
+    #return-button {
+        width: 140px;
+        height: 90px;
+    }
+}
+
+@media screen and (max-width: 992px) {
+    .circular-image.expanded {
+        width: 350px;
+        height: 350px;
+        left: 25%;
+    }
+    
+    .circular-image.expanded img {
+        height: 350px;
+    }
+    
+    .horizontal-card {
+        width: 250px;
+        height: 90px;
+    }
+    
+    .horizontal-cards-container {
+        right: 30px;
+    }
+}
+
+/* Integrated Rhythm Game Styles - No Overlay Version */
+
+/* Game lanes that slide in from right */
+.rhythm-lane-container {
+    position: fixed;
+    top: 20%;
+    right: -800px; /* Hidden off-screen initially */
+    width: 600px;
+    height: 60%;
+    display: flex;
+    gap: 15px;
+    transition: right 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 25;
+}
+
+.rhythm-lane-container.active {
+    right: 100px; /* Slide into view */
+}
+
+/* Lanes with your website's style */
+.rhythm-game-lane {
+    flex: 1;
+    position: relative;
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 15px;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.rhythm-note-area {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: calc(100% - 80px);
+    overflow: hidden;
+}
+
+/* Notes with glowing effects */
+.rhythm-game-note {
+    position: absolute;
+    width: 80%;
+    height: 35px;
+    left: 10%;
+    border-radius: 10px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    transition: all 0.2s ease;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+.rhythm-game-note::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    border-radius: 10px;
+    z-index: -1;
+}
+
+.rhythm-game-note.hit {
+    transform: scale(1.3);
+    opacity: 0;
+    box-shadow: 0 0 30px currentColor;
+}
+
+.rhythm-game-note.missed {
+    opacity: 0.3;
+    filter: grayscale(100%);
+}
+
+/* Lane-specific colors */
+.rhythm-game-note-d {
+    background: linear-gradient(135deg, #ff4444, #ff6666);
+    box-shadow: 0 0 25px rgba(255, 68, 68, 0.5);
+    color: #ff4444;
+}
+
+.rhythm-game-note-f {
+    background: linear-gradient(135deg, #44ff44, #66ff66);
+    box-shadow: 0 0 25px rgba(68, 255, 68, 0.5);
+    color: #44ff44;
+}
+
+.rhythm-game-note-j {
+    background: linear-gradient(135deg, #4444ff, #6666ff);
+    box-shadow: 0 0 25px rgba(68, 68, 255, 0.5);
+    color: #4444ff;
+}
+
+.rhythm-game-note-k {
+    background: linear-gradient(135deg, #ffff44, #ffff66);
+    box-shadow: 0 0 25px rgba(255, 255, 68, 0.5);
+    color: #ffff44;
+}
+
+/* Hit areas */
+.rhythm-hit-area {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: bold;
+    font-family: monospace;
+    letter-spacing: 2px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(15px);
+    border-top: 3px solid rgba(255, 255, 255, 0.5);
+    border-radius: 0 0 15px 15px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.rhythm-hit-area::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    transition: left 0.5s ease;
+}
+
+.rhythm-hit-area:hover::before {
+    left: 100%;
+}
+
+/* Hit area colors */
+.rhythm-hit-area-d {
+    color: #ff6666;
+    border-top-color: rgba(255, 68, 68, 0.8);
+}
+
+.rhythm-hit-area-f {
+    color: #66ff66;
+    border-top-color: rgba(68, 255, 68, 0.8);
+}
+
+.rhythm-hit-area-j {
+    color: #6666ff;
+    border-top-color: rgba(68, 68, 255, 0.8);
+}
+
+.rhythm-hit-area-k {
+    color: #ffff66;
+    border-top-color: rgba(255, 255, 68, 0.8);
+}
+
+/* Active states */
+.rhythm-hit-area.active {
+    transform: scale(1.05);
+    box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+    animation: hitPulse 0.3s ease;
+}
+
+@keyframes hitPulse {
+    0% { transform: scale(1.05); }
+    50% { transform: scale(1.15); }
+    100% { transform: scale(1.05); }
+}
+
+.rhythm-hit-area-d.active {
+    box-shadow: 0 0 30px rgba(255, 68, 68, 0.6);
+}
+
+.rhythm-hit-area-f.active {
+    box-shadow: 0 0 30px rgba(68, 255, 68, 0.6);
+}
+
+.rhythm-hit-area-j.active {
+    box-shadow: 0 0 30px rgba(68, 68, 255, 0.6);
+}
+
+.rhythm-hit-area-k.active {
+    box-shadow: 0 0 30px rgba(255, 255, 68, 0.6);
+}
+
+/* Score display floating above lanes */
+.rhythm-score-display {
+    position: fixed;
+    top: 10%;
+    right: -400px; /* Hidden initially */
+    display: flex;
+    gap: 20px;
+    transition: right 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 25;
+}
+
+.rhythm-score-display.active {
+    right: 150px; /* Slide into view */
+}
+
+.rhythm-score-item {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 15px;
+    padding: 15px 25px;
+    text-align: center;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.rhythm-score-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 40px rgba(255, 255, 255, 0.1);
+}
+
+.rhythm-score-item .label {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.8);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
+    display: block;
+}
+
+.rhythm-score-item .value {
+    font-size: 24px;
+    font-weight: bold;
+    color: white;
+    font-family: monospace;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+/* Progress bar floating at bottom */
+.rhythm-progress-container {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    width: 60%;
+    transform: translateX(-50%) translateY(100px); /* Hidden below */
+    transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 25;
+}
+
+.rhythm-progress-container.active {
+    transform: translateX(-50%) translateY(0); /* Slide up */
+}
+
+.rhythm-progress-bar {
+    height: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    position: relative;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.rhythm-progress-bar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.1) 50%, transparent 100%);
+    animation: progressShimmer 2s infinite;
+}
+
+@keyframes progressShimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.rhythm-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #bb86fc, #03dac6, #bb86fc);
+    border-radius: 10px;
+    transition: width 0.1s linear;
+    box-shadow: 0 0 20px rgba(187, 134, 252, 0.5);
+}
+
+/* Song title floating above */
+.rhythm-song-title {
+    position: fixed;
+    top: 5%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-100px); /* Hidden above */
+    color: white;
+    font-size: 2em;
+    font-family: monospace;
+    letter-spacing: 2px;
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+    transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 25;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(15px);
+    padding: 15px 30px;
+    border-radius: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.rhythm-song-title.active {
+    transform: translateX(-50%) translateY(0); /* Slide down */
+}
+
+/* Judgment animations */
+.rhythm-judgment-text {
+    position: fixed;
+    font-weight: bold;
+    font-size: 28px;
+    font-family: monospace;
+    z-index: 1001;
+    pointer-events: none;
+    opacity: 0;
+    animation: rhythmJudgmentAnim 1.2s ease-out forwards;
+    text-shadow: 0 0 20px currentColor;
+    letter-spacing: 2px;
+}
+
+@keyframes rhythmJudgmentAnim {
+    0% { 
+        opacity: 0; 
+        transform: translateY(0) scale(0.5) rotateZ(-10deg); 
+    }
+    30% { 
+        opacity: 1; 
+        transform: translateY(-20px) scale(1.3) rotateZ(5deg); 
+    }
+    100% { 
+        opacity: 0; 
+        transform: translateY(-60px) scale(1) rotateZ(0deg); 
+    }
+}
+
+/* Judgment colors */
+.rhythm-judgment-perfect {
+    color: #ffeb3b;
+    text-shadow: 0 0 20px #ffeb3b, 0 0 40px #ffeb3b;
+}
+
+.rhythm-judgment-great {
+    color: #4caf50;
+    text-shadow: 0 0 20px #4caf50, 0 0 40px #4caf50;
+}
+
+.rhythm-judgment-good {
+    color: #2196f3;
+    text-shadow: 0 0 20px #2196f3, 0 0 40px #2196f3;
+}
+
+.rhythm-judgment-bad {
+    color: #ff9800;
+    text-shadow: 0 0 20px #ff9800, 0 0 40px #ff9800;
+}
+
+.rhythm-judgment-miss {
+    color: #f44336;
+    text-shadow: 0 0 20px #f44336, 0 0 40px #f44336;
+}
+
+/* Game end results overlay */
+.rhythm-game-end {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 30;
+}
+
+.rhythm-game-end.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.rhythm-end-content {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    padding: 40px;
+    text-align: center;
+    color: white;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.rhythm-end-content h3 {
+    font-size: 2.5em;
+    margin-bottom: 20px;
+    font-family: monospace;
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+    letter-spacing: 2px;
+}
+
+.rhythm-end-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    margin: 30px 0;
+}
+
+.rhythm-end-stat {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 15px;
+    backdrop-filter: blur(10px);
+}
+
+.rhythm-end-stat .stat-label {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.rhythm-end-stat .stat-value {
+    font-size: 24px;
+    font-weight: bold;
+    font-family: monospace;
+}
+
+.rhythm-end-button {
+    background: linear-gradient(135deg, #bb86fc, #03dac6);
+    border: none;
+    color: white;
+    padding: 15px 30px;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 20px;
+    box-shadow: 0 4px 15px rgba(187, 134, 252, 0.3);
+}
+
+.rhythm-end-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(187, 134, 252, 0.4);
+}
+
+/* Loading/countdown in center */
+.rhythm-loading {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: white;
+    z-index: 1002;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(15px);
+    padding: 30px;
+    border-radius: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.rhythm-loading-spinner {
+    width: 80px;
+    height: 80px;
+    border: 4px solid rgba(255, 255, 255, 0.1);
+    border-top: 4px solid #bb86fc;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 30px;
+    position: relative;
+}
+
+.rhythm-loading-spinner::before {
+    content: '';
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    right: 6px;
+    bottom: 6px;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-top: 2px solid #03dac6;
+    border-radius: 50%;
+    animation: spin 2s linear infinite reverse;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.rhythm-loading p {
+    font-size: 20px;
+    font-family: monospace;
+    letter-spacing: 2px;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+/* Responsive Design */
+@media screen and (max-width: 768px) {
+    .rhythm-lane-container {
+        width: 400px;
+        right: -450px;
+    }
+    
+    .rhythm-lane-container.active {
+        right: 20px;
+    }
+    
+    .rhythm-score-display.active {
+        right: 30px;
+    }
+    
+    .rhythm-song-title {
+        font-size: 1.5em;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .rhythm-lane-container {
+        width: 300px;
+        height: 50%;
+        right: -350px;
+    }
+    
+    .rhythm-lane-container.active {
+        right: 10px;
+    }
+    
+    .rhythm-score-display {
+        flex-direction: column;
+        gap: 10px;
+        right: -200px;
+    }
+    
+    .rhythm-score-display.active {
+        right: 10px;
+    }
+    
+    .rhythm-hit-area {
+        font-size: 18px;
+        height: 60px;
+    }
+    
+    .rhythm-end-stats {
+        grid-template-columns: 1fr;
+    }
+}
+.rhythm-hold-note {
+    height: auto !important;
+    min-height: 35px;
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Hold note head (the part you initially hit) */
+.rhythm-hold-head {
+    width: 80%;
+    height: 35px;
+    border-radius: 10px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    position: relative;
+    transition: all 0.2s ease;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+/* Hold note tail (the long part you hold) */
+.rhythm-hold-tail {
+    width: 40%;
+    min-height: 20px;
+    border-left: 3px solid rgba(255, 255, 255, 0.4);
+    border-right: 3px solid rgba(255, 255, 255, 0.4);
+    background: linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0.1) 0%,
+        rgba(255, 255, 255, 0.05) 50%,
+        rgba(255, 255, 255, 0.1) 100%
+    );
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+/* Animated pattern inside hold tail */
+.rhythm-hold-tail::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        rgba(255, 255, 255, 0.1) 5px,
+        transparent 10px,
+        transparent 15px
+    );
+    animation: holdTailPattern 1s linear infinite;
+}
+
+@keyframes holdTailPattern {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(-20px); }
+}
+
+/* Hold note end (the release point) */
+.rhythm-hold-end {
+    width: 80%;
+    height: 35px;
+    border-radius: 10px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    position: relative;
+    transition: all 0.2s ease;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* Lane-specific colors for hold notes */
+.rhythm-game-note-d .rhythm-hold-head,
+.rhythm-game-note-d .rhythm-hold-end {
+    background: linear-gradient(135deg, #ff4444, #ff6666);
+    box-shadow: 0 0 25px rgba(255, 68, 68, 0.5);
+    border-color: rgba(255, 68, 68, 0.6);
+}
+
+.rhythm-game-note-d .rhythm-hold-tail {
+    border-color: rgba(255, 68, 68, 0.6);
+    background: linear-gradient(
+        to bottom,
+        rgba(255, 68, 68, 0.1) 0%,
+        rgba(255, 68, 68, 0.05) 50%,
+        rgba(255, 68, 68, 0.1) 100%
+    );
+}
+
+.rhythm-game-note-f .rhythm-hold-head,
+.rhythm-game-note-f .rhythm-hold-end {
+    background: linear-gradient(135deg, #44ff44, #66ff66);
+    box-shadow: 0 0 25px rgba(68, 255, 68, 0.5);
+    border-color: rgba(68, 255, 68, 0.6);
+}
+
+.rhythm-game-note-f .rhythm-hold-tail {
+    border-color: rgba(68, 255, 68, 0.6);
+    background: linear-gradient(
+        to bottom,
+        rgba(68, 255, 68, 0.1) 0%,
+        rgba(68, 255, 68, 0.05) 50%,
+        rgba(68, 255, 68, 0.1) 100%
+    );
+}
+
+.rhythm-game-note-j .rhythm-hold-head,
+.rhythm-game-note-j .rhythm-hold-end {
+    background: linear-gradient(135deg, #4444ff, #6666ff);
+    box-shadow: 0 0 25px rgba(68, 68, 255, 0.5);
+    border-color: rgba(68, 68, 255, 0.6);
+}
+
+.rhythm-game-note-j .rhythm-hold-tail {
+    border-color: rgba(68, 68, 255, 0.6);
+    background: linear-gradient(
+        to bottom,
+        rgba(68, 68, 255, 0.1) 0%,
+        rgba(68, 68, 255, 0.05) 50%,
+        rgba(68, 68, 255, 0.1) 100%
+    );
+}
+
+.rhythm-game-note-k .rhythm-hold-head,
+.rhythm-game-note-k .rhythm-hold-end {
+    background: linear-gradient(135deg, #ffff44, #ffff66);
+    box-shadow: 0 0 25px rgba(255, 255, 68, 0.5);
+    border-color: rgba(255, 255, 68, 0.6);
+}
+
+.rhythm-game-note-k .rhythm-hold-tail {
+    border-color: rgba(255, 255, 68, 0.6);
+    background: linear-gradient(
+        to bottom,
+        rgba(255, 255, 68, 0.1) 0%,
+        rgba(255, 255, 68, 0.05) 50%,
+        rgba(255, 255, 68, 0.1) 100%
+    );
+}
+
+/* Hold note states */
+.rhythm-hold-note.hold-active .rhythm-hold-head {
+    transform: scale(1.1);
+    box-shadow: 0 0 35px currentColor;
+}
+
+.rhythm-hold-note.hold-active .rhythm-hold-tail {
+    background: linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0.2) 0%,
+        rgba(255, 255, 255, 0.1) 50%,
+        rgba(255, 255, 255, 0.2) 100%
+    );
+    animation: holdTailActive 0.5s ease infinite alternate;
+}
+
+@keyframes holdTailActive {
+    0% { 
+        box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.2);
+        border-width: 3px;
+    }
+    100% { 
+        box-shadow: inset 0 0 30px rgba(255, 255, 255, 0.3);
+        border-width: 4px;
+    }
+}
+
+.rhythm-hold-note.hold-active .rhythm-hold-tail::before {
+    animation: holdTailPatternActive 0.3s linear infinite;
+    background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        rgba(255, 255, 255, 0.3) 3px,
+        transparent 6px,
+        transparent 9px
+    );
+}
+
+@keyframes holdTailPatternActive {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(-12px); }
+}
+
+/* Hold note hit states */
+.rhythm-hold-head.hit {
+    transform: scale(1.3);
+    opacity: 0.8;
+    animation: holdHeadHit 0.3s ease;
+}
+
+@keyframes holdHeadHit {
+    0% { transform: scale(1.1); }
+    50% { transform: scale(1.4); }
+    100% { transform: scale(1.3); }
+}
+
+.rhythm-hold-end.hit {
+    transform: scale(1.3);
+    opacity: 0.8;
+    animation: holdEndHit 0.3s ease;
+}
+
+@keyframes holdEndHit {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.4); }
+    100% { transform: scale(1.3); }
+}
+
+/* Hold note completion effect */
+.rhythm-hold-note.hold-completed {
+    animation: holdCompleted 0.5s ease forwards;
+}
+
+@keyframes holdCompleted {
+    0% { 
+        opacity: 1; 
+        transform: scale(1);
+    }
+    50% { 
+        opacity: 0.8; 
+        transform: scale(1.2);
+        filter: brightness(1.5);
+    }
+    100% { 
+        opacity: 0; 
+        transform: scale(1.5);
+        filter: brightness(2);
+    }
+}
+
+/* Hold note failure states */
+.rhythm-hold-note.hold-failed {
+    animation: holdFailed 0.5s ease forwards;
+}
+
+@keyframes holdFailed {
+    0% { 
+        opacity: 1; 
+        filter: hue-rotate(0deg);
+    }
+    100% { 
+        opacity: 0.3; 
+        filter: hue-rotate(180deg) grayscale(100%);
+        transform: translateX(20px);
+    }
+}
+
+/* Enhanced judgment animations for hold-specific judgments */
+.rhythm-judgment-release {
+    color: #03dac6;
+    text-shadow: 0 0 20px #03dac6, 0 0 40px #03dac6;
+}
+
+.rhythm-judgment-dropped {
+    color: #ff5722;
+    text-shadow: 0 0 20px #ff5722, 0 0 40px #ff5722;
+    animation: droppedJudgment 1.2s ease-out forwards;
+}
+
+@keyframes droppedJudgment {
+    0% { 
+        opacity: 0; 
+        transform: translateY(0) scale(0.5) rotateZ(0deg); 
+    }
+    30% { 
+        opacity: 1; 
+        transform: translateY(-20px) scale(1.3) rotateZ(-15deg); 
+    }
+    100% { 
+        opacity: 0; 
+        transform: translateY(-60px) scale(1) rotateZ(-30deg); 
+    }
+}
+
+.rhythm-judgment-timeout {
+    color: #795548;
+    text-shadow: 0 0 20px #795548, 0 0 40px #795548;
+    animation: timeoutJudgment 1.2s ease-out forwards;
+}
+
+@keyframes timeoutJudgment {
+    0% { 
+        opacity: 0; 
+        transform: translateY(0) scale(0.5) rotateZ(0deg); 
+    }
+    30% { 
+        opacity: 1; 
+        transform: translateY(-20px) scale(1.3) rotateZ(15deg); 
+    }
+    100% { 
+        opacity: 0; 
+        transform: translateY(-60px) scale(1) rotateZ(30deg); 
+    }
+}
+
+/* Visual feedback for lanes during hold */
+.rhythm-hit-area.holding {
+    background: rgba(255, 255, 255, 0.2);
+    animation: holdingPulse 1s ease infinite;
+}
+
+@keyframes holdingPulse {
+    0% { 
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+        background: rgba(255, 255, 255, 0.2);
+    }
+    50% { 
+        box-shadow: 0 0 40px rgba(255, 255, 255, 0.5);
+        background: rgba(255, 255, 255, 0.3);
+    }
+    100% { 
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+        background: rgba(255, 255, 255, 0.2);
+    }
+}
+
+/* Responsive adjustments for hold notes */
+@media screen and (max-width: 768px) {
+    .rhythm-hold-head,
+    .rhythm-hold-end {
+        height: 30px;
+    }
+    
+    .rhythm-hold-tail {
+        width: 50%;
+        border-width: 2px;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .rhythm-hold-head,
+    .rhythm-hold-end {
+        height: 25px;
+    }
+    
+    .rhythm-hold-tail {
+        width: 60%;
+        border-width: 2px;
+    }
+    
+    .rhythm-hold-tail::before {
+        background: repeating-linear-gradient(
+            to bottom,
+            transparent 0px,
+            rgba(255, 255, 255, 0.1) 3px,
+            transparent 6px,
+            transparent 9px
+        );
+    }
+}
