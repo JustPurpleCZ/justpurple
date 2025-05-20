@@ -396,10 +396,13 @@ function updateRhythmNotes(currentTime) {
     // Update positions of active notes
     rhythmActiveNotes.forEach(note => {
         if (note.element) {
+            // For hold notes, we need to position based on the head (start time)
             const timeDiff = note.time - currentTime;
             const noteArea = document.getElementById(`rhythm-note-area-${note.lane}`);
+            if (!noteArea) return;
+            
             const laneHeight = noteArea.clientHeight;
-            const hitAreaHeight = 80;
+            const hitAreaHeight = 80; // Height of the hit area
             const playableHeight = laneHeight;
             
             // Calculate progress - when timeDiff = 0, the note should be at the hit line
@@ -409,31 +412,38 @@ function updateRhythmNotes(currentTime) {
             
             // Position based on progress
             const topPosition = progress * playableHeight;
-            const topPercentage = (topPosition / laneHeight) * 100;
+            let topPercentage = (topPosition / laneHeight) * 100;
             
-            note.element.style.top = `${Math.max(0, Math.min(100, topPercentage))}%`;
-            
-            // Check if note is missed
-            if (timeDiff < -350 && !note.hit && !note.missed) {
-                if (!note.isHold) {
-                    // Regular note is missed
+            // For hold notes, ensure the head reaches the hit line at the correct time
+            if (note.isHold) {
+                note.element.style.top = `${Math.max(0, Math.min(100, topPercentage))}%`;
+                
+                // If the hold head has passed the hit line and hasn't been started yet
+                if (timeDiff < -150 && !note.holdStarted && !note.missed) {
                     rhythmNoteMissed(note);
-                } else if (!note.holdStarted) {
-                    // Hold note start is missed
+                }
+            } else {
+                // Regular notes
+                note.element.style.top = `${Math.max(0, Math.min(100, topPercentage))}%`;
+                
+                // Check if note is missed
+                if (timeDiff < -150 && !note.hit && !note.missed) {
                     rhythmNoteMissed(note);
                 }
             }
         }
     });
     
-    // Handle hold notes
+    // Handle hold notes - process active holds separately
     updateHoldNotes(currentTime);
     
     // Remove notes that are far past
     const notesToRemove = rhythmActiveNotes.filter(note => {
         if (note.isHold) {
+            // For hold notes, remove if completed or failed
             return (note.hit || note.missed) && !note.holding;
         } else {
+            // For regular notes, remove if they're far past
             return note.time < currentTime - 500;
         }
     });
@@ -467,19 +477,64 @@ function updateHoldNotes(currentTime) {
     
     // Check for hold notes that have passed their end time
     rhythmHoldNotes.forEach(note => {
-        if (currentTime > note.endTime + 350 && note.holding) {
-            // Hold note timed out
+        // Calculate timing for the end of the hold
+        const endTimeDiff = note.endTime - currentTime;
+        
+        // Check if the hold note's end has passed and the player is still holding
+        if (endTimeDiff < -200 && note.holding) {
+            // Successfully held until the end
             note.holding = false;
-            note.missed = true;
+            note.holdReleased = true;
+            note.hit = true;
             
-            rhythmCombo = 0;
-            rhythmHits.miss++;
+            // Give points for completing the hold
+            let bonusPoints = 50; // Base points for completing hold
             
+            rhythmScore += bonusPoints;
+            rhythmCombo++;
+            rhythmMaxCombo = Math.max(rhythmMaxCombo, rhythmCombo);
+            rhythmHits.perfect++; // Count as perfect when held properly
+            
+            // Visual feedback for successful hold completion
             if (note.element) {
-                note.element.classList.add('hold-failed');
+                note.element.classList.add('hold-completed');
+                const holdEnd = note.element.querySelector('.rhythm-hold-end');
+                if (holdEnd) holdEnd.classList.add('hit');
+                
+                setTimeout(() => {
+                    if (note.element && note.element.parentNode) {
+                        note.element.remove();
+                    }
+                }, 200);
             }
             
-            showRhythmJudgment(note.lane, 'TIMEOUT');
+            showRhythmJudgment(note.lane, 'PERFECT HOLD');
+            updateRhythmScoreDisplay();
+        }
+        // If player is still holding after a grace period, consider the hold finished
+        else if (endTimeDiff < -350 && note.holding) {
+            // Player held too long - but still complete it successfully
+            note.holding = false;
+            note.holdReleased = true;
+            note.hit = true;
+            
+            // Give reduced points
+            let bonusPoints = 30;
+            
+            rhythmScore += bonusPoints;
+            rhythmCombo++;
+            
+            // Visual feedback
+            if (note.element) {
+                note.element.classList.add('hold-completed');
+                setTimeout(() => {
+                    if (note.element && note.element.parentNode) {
+                        note.element.remove();
+                    }
+                }, 200);
+            }
+            
+            showRhythmJudgment(note.lane, 'GOOD HOLD');
             updateRhythmScoreDisplay();
         }
     });
@@ -520,7 +575,7 @@ function spawnRhythmNote(note) {
         const spawnWindow = 2000; // Same as in updateRhythmNotes
         const laneHeight = noteArea.clientHeight;
         const hitAreaHeight = 80;
-        const playableHeight = laneHeight - hitAreaHeight;
+        const playableHeight = laneHeight;
         
         // Calculate how long the hold note should be in pixels
         const holdLengthInPixels = (note.duration / spawnWindow) * playableHeight;
@@ -544,6 +599,7 @@ function spawnRhythmNote(note) {
         note.isHold = false;
     }
     
+    // Start off-screen at the top (0%)
     noteElement.style.top = '0%';
     noteArea.appendChild(noteElement);
     note.element = noteElement;
@@ -643,18 +699,30 @@ function handleHoldNoteRelease(key) {
     );
     
     holdNotesInLane.forEach(note => {
-        const releaseAccuracy = Math.abs(note.endTime - currentTime);
+        // Calculate timing for the end of the hold
+        const endTimeDiff = note.endTime - currentTime;
         
-        // Check if release was within acceptable range
-        if (releaseAccuracy <= 300) {
-            // Successful hold completion
+        // Check if release was close to the end time (manual release)
+        if (Math.abs(endTimeDiff) <= 200) {
+            // Successful hold completion with good timing
             note.holdReleased = true;
             note.holding = false;
             note.hit = true;
             
-            // Give bonus points for completing the hold
-            let releaseJudgment = getJudgmentFromAccuracy(releaseAccuracy);
-            let bonusPoints = getPointsFromJudgment(releaseJudgment) * 0.5; // 50% bonus for release
+            // Give bonus points based on accuracy
+            let releaseJudgment = '';
+            let bonusPoints = 0;
+            
+            if (Math.abs(endTimeDiff) <= 50) {
+                releaseJudgment = 'PERFECT';
+                bonusPoints = 100;
+            } else if (Math.abs(endTimeDiff) <= 100) {
+                releaseJudgment = 'GREAT';
+                bonusPoints = 80;
+            } else {
+                releaseJudgment = 'GOOD';
+                bonusPoints = 50;
+            }
             
             rhythmScore += bonusPoints;
             rhythmCombo++;
@@ -674,8 +742,10 @@ function handleHoldNoteRelease(key) {
             }
             
             showRhythmJudgment(note.lane, `${releaseJudgment} RELEASE`);
-        } else if (currentTime >= note.endTime - 300) {
-            // Released too early or too late
+        } 
+        // Released too early
+        else if (endTimeDiff > 200) {
+            // Released too early
             note.holdReleased = true;
             note.holding = false;
             note.missed = true;
@@ -692,7 +762,29 @@ function handleHoldNoteRelease(key) {
                 }, 200);
             }
             
-            showRhythmJudgment(note.lane, 'MISS');
+            showRhythmJudgment(note.lane, 'EARLY RELEASE');
+        }
+        // Released too late (shouldn't happen often due to auto-completion logic)
+        else if (endTimeDiff < -200) {
+            // Released too late
+            note.holdReleased = true;
+            note.holding = false;
+            note.hit = true; // Still count as hit but with reduced score
+            
+            // Reduced points for late release
+            rhythmScore += 30;
+            rhythmCombo++;
+            
+            if (note.element) {
+                note.element.classList.add('hold-completed');
+                setTimeout(() => {
+                    if (note.element && note.element.parentNode) {
+                        note.element.remove();
+                    }
+                }, 200);
+            }
+            
+            showRhythmJudgment(note.lane, 'LATE RELEASE');
         }
         
         updateRhythmScoreDisplay();
