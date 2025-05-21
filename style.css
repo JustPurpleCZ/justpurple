@@ -327,22 +327,22 @@ body {
 .circular-image img {
     height: 300px;
     width: auto;
+    transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .circular-image.expanded {
-    width: 800px;  /* Make it much larger */
-    height: 800px;
+    width: 200vh;
+    height: 200vh;
     position: fixed;
-    top: 50%;
-    left: -300px;  /* Position it mostly off-screen to the left */
-    transform: translate(0, -50%);  /* Only center vertically */
+    top: -50vh;
+    left: -180vh;
     transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
     z-index: 30;
 }
 
 .circular-image.expanded img {
-    width: 800px;   /* Match container size */
-    height: 800px;
+    width: 200vh;
+    height: 200vh;
     object-fit: cover;  /* Ensure image covers the entire circle */
 }
 
@@ -1142,7 +1142,7 @@ body {
 /* Score display floating above lanes */
 .rhythm-score-display {
     position: fixed;
-    top: 10%;
+    top: -10%;
     left: 50%;
     transform: translateX(-50%) translateY(-100px); /* Initially off-screen */
     display: flex;
@@ -1155,7 +1155,7 @@ body {
 
 
 .rhythm-score-display.active {
-    transform: translateX(-50%) translateY(0); /* Move into view */
+    top: 10%;
     right: auto; /* Remove right property */
 }
 

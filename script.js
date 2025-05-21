@@ -98,10 +98,6 @@ const cardSongs = {
         map: "party/music/jazz.json"
     }
 };
-document.addEventListener('DOMContentLoaded', function() {
-    // Create styles for animations
-    createRhythmGameStyles();
-});
 
 // Create additional styles for rhythm game animations
 function createRhythmGameElements() {
@@ -307,7 +303,7 @@ function closeRhythmGame() {
     const laneContainer = document.getElementById('rhythmLaneContainer');
     const progressContainer = document.querySelector('.rhythm-progress-container');
     const endOverlay = document.getElementById('rhythmGameEnd');
-    
+
     if (songTitle) songTitle.classList.remove('active');
     if (scoreDisplay) scoreDisplay.classList.remove('active');
     if (laneContainer) laneContainer.classList.remove('active');
@@ -1113,15 +1109,12 @@ function attachCardClickListeners() {
             newCard.addEventListener('click', (e) => {
                 // Add click animation
                 newCard.style.transform = 'scale(0.95)';
-                setTimeout(() => {
-                    newCard.style.transform = '';
-                }, 150);
-                
+                hideHorizontalCards();
                 // Start rhythm game
                 startRhythmGame(index + 1);
             });
         });
-    }, 300);
+    }, 600);
 }
 
 // Add keyboard shortcuts for ESC to close
@@ -1130,6 +1123,7 @@ document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape' && rhythmGameActive) {
         event.preventDefault();
         closeRhythmGame();
+        showHorizontalCards();
     }
     
     // Space to pause/resume rhythm game
@@ -2000,9 +1994,12 @@ function handleImageClick() {
     
     // 3. Hide rhomboids by removing active class (except the return button)
     const rhomboids = document.querySelectorAll('.rhomboid:not(#return-button)');
+    rhomboids.forEach((rhomboid) => {
+        rhomboid.classList.remove('wave');
+    });
     rhomboids.forEach((rhomboid, index) => {
         setTimeout(() => {
-            rhomboid.classList.remove('active', 'wave');
+            rhomboid.classList.remove('active');
         }, index * 100);
     });
     
@@ -2016,17 +2013,15 @@ function handleImageClick() {
     // 6. Show return button by adding active class
     const returnButton = document.getElementById('return-button');
     if (returnButton) {
-        console.log('Found return button, showing it...'); // Debug log
-        // Make sure it starts off-screen
-        returnButton.style.transform = 'translateX(400px)';
         returnButton.classList.remove('active');
-        
         setTimeout(() => {
             // Clear inline transform and add active class
             returnButton.style.transform = '';
             returnButton.classList.add('active');
-            console.log('Return button should be visible now'); // Debug log
         }, 800);
+        setTimeout(() => {
+            returnButton.classList.add('wave');      
+        }, 2400);
     } else {
         console.log('Return button not found!'); // Debug log
     }
@@ -2038,6 +2033,7 @@ function handleImageClick() {
 // Function to show existing horizontal cards
 function showHorizontalCards() {
     if (horizontalCardsVisible) return;
+    console.log("tried")
     horizontalCardsVisible = true;
     
     // Get the existing horizontal cards container
@@ -2056,12 +2052,7 @@ function showHorizontalCards() {
     horizontalCards.forEach((card, index) => {
         // Set initial position (fully off-screen to the right)
         card.style.transform = 'translateX(100%)';
-        card.style.opacity = '1'; // Ensure it's visible
-        
-        // Clear any existing transition delay
         card.style.transitionDelay = '';
-        
-        // Force reflow
         void card.offsetHeight;
         
         // Set the delay before applying the transform
@@ -2084,7 +2075,7 @@ function hideHorizontalCards() {
         card.style.transitionDelay = `${index * 50}ms`;
         
         // Move cards off screen to the right
-        card.style.transform = 'translateX(100%)';
+        card.style.transform = 'translateX(150%)';
     });
     
     // Hide container after animation completes
@@ -2099,50 +2090,35 @@ function hideHorizontalCards() {
             });
         }
     }, maxDelay);
+    horizontalCardsVisible = false;
 }
 
 // UPDATED resetInterface function using class system
 function resetInterface() {
     if (!interfaceExpanded) return;
-    
-    // 1. Hide horizontal cards
     hideHorizontalCards();
-    
-    // 2. Hide return button by removing active class
+    closeRhythmGame()
     const returnButton = document.getElementById('return-button');
     if (returnButton) {
+        returnButton.classList.remove('wave'); 
         returnButton.classList.remove('active');
     }
-    
-    // 3. Reset circular image
     const circularImage = document.querySelector('.circular-image');
     circularImage.classList.remove('expanded');
-    
-    // 4. Bring back content box
     const contentBox = document.querySelector('.content-box');
     contentBox.style.transform = 'translateY(0)';
-    
-    // 5. Show rhomboids by adding active class (except the return button)
     const rhomboids = document.querySelectorAll('.rhomboid:not(#return-button)');
     rhomboids.forEach((rhomboid, index) => {
-        // Start from off-screen position
         rhomboid.style.transform = 'translateX(400px)';
         rhomboid.classList.remove('active', 'wave');
-        
         setTimeout(() => {
-            // Slide in
             rhomboid.style.transform = '';
             rhomboid.classList.add('active');
-            
-            // Add wave animation after slide-in completes
             setTimeout(() => {
                 rhomboid.classList.add('wave');
-            }, 1500); // Wait for slide-in transition to complete
-            
+            }, 1500);
         }, 300 + (index * 100));
     });
-    
-    // 6. Bring back cards
     const cards = document.querySelectorAll('.card');
     cards.forEach((card, index) => {
         setTimeout(() => {
@@ -2150,8 +2126,6 @@ function resetInterface() {
             card.style.opacity = '1';
         }, 600 + (index * 50));
     });
-    
-    // Reset state variables
     setTimeout(() => {
         interfaceExpanded = false;
         horizontalCardsVisible = false;
