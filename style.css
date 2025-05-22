@@ -1523,6 +1523,7 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
+    position: relative;
 }
 
 /* Hold note head (the part you initially hit) */
@@ -1534,6 +1535,7 @@ body {
     position: relative;
     transition: all 0.2s ease;
     box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+    order: 1; /* Ensure head is first */
 }
 
 /* Hold note tail (the long part you hold) */
@@ -1550,6 +1552,7 @@ body {
     );
     position: relative;
     transition: all 0.3s ease;
+    order: 2; /* Tail comes after head */
 }
 
 /* Animated pattern inside hold tail */
@@ -1585,6 +1588,7 @@ body {
     transition: all 0.2s ease;
     box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
     background: rgba(255, 255, 255, 0.05);
+    order: 3; /* End comes last */
 }
 
 /* Lane-specific colors for hold notes */

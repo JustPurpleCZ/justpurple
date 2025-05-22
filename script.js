@@ -392,37 +392,38 @@ function updateRhythmNotes(currentTime) {
     // Update positions of active notes
     rhythmActiveNotes.forEach(note => {
         if (note.element) {
-            // For hold notes, we need to position based on the head (start time)
             const timeDiff = note.time - currentTime;
             const noteArea = document.getElementById(`rhythm-note-area-${note.lane}`);
             if (!noteArea) return;
             
             const laneHeight = noteArea.clientHeight;
-            const hitAreaHeight = 80; // Height of the hit area
             const playableHeight = laneHeight;
             
-            // Calculate progress - when timeDiff = 0, the note should be at the hit line
-            // When timeDiff = spawnWindow, the note should be at the top
+            // Calculate progress - when timeDiff = 0, the HEAD should be at the hit line
             let progress = 1 - (timeDiff / spawnWindow);
             progress = Math.max(0, Math.min(1, progress));
             
-            // Position based on progress
-            const topPosition = progress * playableHeight;
-            let topPercentage = (topPosition / laneHeight) * 100;
-            
-            // For hold notes, ensure the head reaches the hit line at the correct time
             if (note.isHold) {
-                note.element.style.top = `${Math.max(0, Math.min(100, topPercentage))}%`;
+                // For hold notes, position so the HEAD reaches the hit line at the correct time
+                // The head should be at the hit line when timeDiff = 0
+                const topPosition = progress * playableHeight;
+                let topPercentage = (topPosition / laneHeight) * 100;
                 
-                // If the hold head has passed the hit line and hasn't been started yet
+                // Adjust positioning so that when the head reaches the bottom, 
+                // the timing is correct for hitting
+                const headOffset = 35; // Height of the head in pixels
+                const adjustedTopPercentage = topPercentage - ((headOffset / laneHeight) * 100);
+                
+                note.element.style.top = `${Math.max(-10, Math.min(100, adjustedTopPercentage))}%`;
+                
+                // Check if head has passed the hit line
                 if (timeDiff < -150 && !note.holdStarted && !note.missed) {
                     rhythmNoteMissed(note);
                 }
             } else {
-                // Regular notes
-                note.element.style.top = `${Math.max(0, Math.min(100, topPercentage))}%`;
+                // Regular notes - same as before
+                note.element.style.top = `${Math.max(0, Math.min(100, (progress * playableHeight / laneHeight) * 100))}%`;
                 
-                // Check if note is missed
                 if (timeDiff < -150 && !note.hit && !note.missed) {
                     rhythmNoteMissed(note);
                 }
@@ -436,10 +437,8 @@ function updateRhythmNotes(currentTime) {
     // Remove notes that are far past
     const notesToRemove = rhythmActiveNotes.filter(note => {
         if (note.isHold) {
-            // For hold notes, remove if completed or failed
             return (note.hit || note.missed) && !note.holding;
         } else {
-            // For regular notes, remove if they're far past
             return note.time < currentTime - 500;
         }
     });
@@ -570,13 +569,12 @@ function spawnRhythmNote(note) {
         // Calculate hold note length based on duration and fall speed
         const spawnWindow = 2000; // Same as in updateRhythmNotes
         const laneHeight = noteArea.clientHeight;
-        const hitAreaHeight = 80;
         const playableHeight = laneHeight;
         
         // Calculate how long the hold note should be in pixels
         const holdLengthInPixels = (note.duration / spawnWindow) * playableHeight;
         
-        // Create hold note structure
+        // FIXED: Restructure hold note to have head at top, tail below
         noteElement.innerHTML = `
             <div class="rhythm-hold-head"></div>
             <div class="rhythm-hold-tail" style="height: ${holdLengthInPixels}px;"></div>
