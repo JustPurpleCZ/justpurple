@@ -404,12 +404,17 @@ function updateRhythmNotes(currentTime) {
             
             // For hold notes, we need to position based on the BOTTOM of the note
             if (note.type === 'hold' && note.duration) {
-                // Calculate the position where the BOTTOM of the note should be
-                const bottomPosition = progress * playableHeight;
-                const bottomPercentage = (bottomPosition / laneHeight) * 100;
+                // Calculate where the bottom of the note should be
+                // At progress = 0: note bottom should be at 100% (completely off-screen above)
+                // At progress = 1: note bottom should be at hit area top (playable height)
                 
-                // Use bottom positioning instead of top
-                note.element.style.bottom = `${50 + (100 - bottomPercentage)}px`; // 50px for hit area height
+                const bottomPosition = (1 - progress) * 100; // Inverted because bottom: 0% means at bottom
+                const hitAreaPercentage = (hitAreaHeight / laneHeight) * 100; // Convert hit area to percentage
+                
+                // Adjust so that at progress = 1, the bottom aligns with hit area
+                const adjustedBottomPercentage = bottomPosition + hitAreaPercentage;
+                
+                note.element.style.bottom = `${Math.max(0, Math.min(100, adjustedBottomPercentage))}%`;
                 note.element.style.top = 'auto'; // Clear any top positioning
             } else {
                 // For regular tap notes, use the original logic
@@ -564,13 +569,13 @@ function spawnRhythmNote(note) {
             <div class="hold-note-tail"></div>
         `;
         
-        // Position at bottom initially (off-screen)
+        // Position at bottom initially (off-screen above) - using percentage
         noteElement.style.bottom = '100%';
         noteElement.style.top = 'auto';
     } else {
         // Regular tap note
         noteElement.style.height = '30px';
-        noteElement.style.top = '0%';
+        noteElement.style.top = '0%';  // Start at top (off-screen above)
         noteElement.style.bottom = 'auto';
     }
     
