@@ -79,7 +79,7 @@ const cardSongs = {
     },
     2: {
         title: "Ellen Joe theme", 
-        audio: "party/music/ellen.mp3",
+        audio: "party/music/ellentheme.mp3",
         map: "party/music/ellen.json"
     },
     3: {
@@ -551,31 +551,48 @@ function spawnRhythmNote(note) {
     if (!noteArea) return;
     
     const noteElement = document.createElement('div');
-    noteElement.className = `rhythm-game-note rhythm-game-note-${note.lane}`;
     
-    // Handle hold notes differently
+    // Check if it's a hold note
     if (note.type === 'hold' && note.duration) {
-        noteElement.classList.add('rhythm-hold-note');
+        // Create hold note with proper structure
+        noteElement.className = `rhythm-game-note rhythm-game-note-${note.lane} rhythm-hold-note`;
         
-        // Calculate hold note height based on duration
-        const holdHeight = (note.duration / 1000) * rhythmFallSpeed;
-        noteElement.style.height = `${holdHeight}px`;
+        // Calculate hold note length based on duration and fall speed
+        const spawnWindow = 2000; // Same as in updateRhythmNotes
+        const laneHeight = noteArea.clientHeight;
+        const playableHeight = laneHeight;
         
-        // Add visual elements for hold note
+        // Calculate how long the hold note should be in pixels
+        const holdLengthInPixels = (note.duration / spawnWindow) * playableHeight;
+        
+        // Create hold note structure: END at top, TAIL in middle, HEAD at bottom
         noteElement.innerHTML = `
-            <div class="hold-note-head"></div>
-            <div class="hold-note-body"></div>
-            <div class="hold-note-tail"></div>
+            <div class="rhythm-hold-end"></div>
+            <div class="rhythm-hold-tail" style="height: ${holdLengthInPixels}px;"></div>
+            <div class="rhythm-hold-head"></div>
         `;
         
-        // Position at bottom initially (off-screen)
-        noteElement.style.bottom = '100%';
-        noteElement.style.top = 'auto';
+        // Calculate total height: end + tail + head
+        const totalHeight = 35 + holdLengthInPixels + 35; // end(35px) + tail + head(35px)
+        noteElement.style.height = `${totalHeight}px`;
+        
+        // Store additional properties for hold notes
+        note.isHold = true;
+        note.holdStarted = false;
+        note.holding = false;
+        note.holdReleased = false;
+        note.endTime = note.time + note.duration;
+        
+        // Position off-screen at the top
+        noteElement.style.top = '0%';
+        noteElement.style.bottom = 'auto';
     } else {
         // Regular tap note
+        noteElement.className = `rhythm-game-note rhythm-game-note-${note.lane}`;
         noteElement.style.height = '30px';
         noteElement.style.top = '0%';
         noteElement.style.bottom = 'auto';
+        note.isHold = false;
     }
     
     noteArea.appendChild(noteElement);
@@ -623,32 +640,69 @@ function handleRhythmKeyDown(event) {
     // Check for note hit (both regular and hold notes)
     checkRhythmNoteHit(key);
 }
-function checkRhythmNoteHit(key) {
-    const currentTime = rhythmAudio.currentTime * 1000;
+function rhythmNoteHit(note, accuracy) {
+    if (note.hit || note.missed) return;
     
-    const notesInLane = rhythmActiveNotes.filter(note => 
-        note.lane === key && !note.hit && !note.missed
-    );
-    
-    if (notesInLane.length === 0) return;
-    
-    // Sort notes by how close they are to the hit point
-    notesInLane.sort((a, b) => {
-        // Calculate how close each note is to the hit time
-        // For regular notes, we use currentTime
-        // For hold notes, we use the start time (note.time)
-        const aTimeDiff = Math.abs(a.time - currentTime);
-        const bTimeDiff = Math.abs(b.time - currentTime);
-        return aTimeDiff - bTimeDiff;
-    });
-    
-    const closestNote = notesInLane[0];
-    const timeDiff = Math.abs(closestNote.time - currentTime);
-    
-    // Wider hit window (350ms) for better playability
-    if (timeDiff <= 350) {
-        console.log(`Hit note with accuracy: ${timeDiff}ms`);
-        rhythmNoteHit(closestNote, timeDiff);
+    if (note.isHold) {
+        // Handle hold note start
+        if (!note.holdStarted) {
+            note.holdStarted = true;
+            note.holding = true;
+            rhythmHoldNotes.push(note);
+            
+            // Visual feedback for hold start
+            if (note.element) {
+                note.element.classList.add('hold-active');
+                const holdHead = note.element.querySelector('.rhythm-hold-head');
+                if (holdHead) holdHead.classList.add('hit');
+            }
+            
+            // Give points for starting the hold
+            let judgment = getJudgmentFromAccuracy(accuracy);
+            let points = getPointsFromJudgment(judgment);
+            
+            rhythmCombo++;
+            rhythmMaxCombo = Math.max(rhythmMaxCombo, rhythmCombo);
+            rhythmScore += points;
+            rhythmHits.total++;
+            rhythmHits[judgment.toLowerCase()]++;
+            
+            updateRhythmScoreDisplay();
+            showRhythmJudgment(note.lane, judgment);
+            
+            // Add screen shake for bad hits
+            if (judgment === 'BAD') {
+                addScreenShake();
+            }
+        }
+    } else {
+        // Handle regular note (same as before)
+        note.hit = true;
+        
+        let judgment = getJudgmentFromAccuracy(accuracy);
+        let points = getPointsFromJudgment(judgment);
+        
+        rhythmCombo++;
+        rhythmMaxCombo = Math.max(rhythmMaxCombo, rhythmCombo);
+        rhythmScore += points;
+        rhythmHits.total++;
+        rhythmHits[judgment.toLowerCase()]++;
+        
+        updateRhythmScoreDisplay();
+        showRhythmJudgment(note.lane, judgment);
+        
+        if (judgment === 'BAD') {
+            addScreenShake();
+        }
+        
+        if (note.element) {
+            note.element.classList.add('hit');
+            setTimeout(() => {
+                if (note.element && note.element.parentNode) {
+                    note.element.remove();
+                }
+            }, 100);
+        }
     }
 }
 function handleRhythmKeyUp(event) {
