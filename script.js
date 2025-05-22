@@ -404,17 +404,21 @@ function updateRhythmNotes(currentTime) {
             progress = Math.max(0, Math.min(1, progress));
             
             if (note.isHold) {
-                // For hold notes, position so the HEAD reaches the hit line at the correct time
+                // For hold notes, position so the HEAD (at bottom of note) reaches the hit line at the correct time
                 // The head should be at the hit line when timeDiff = 0
                 const topPosition = progress * playableHeight;
                 let topPercentage = (topPosition / laneHeight) * 100;
                 
-                // Adjust positioning so that when the head reaches the bottom, 
-                // the timing is correct for hitting
-                const headOffset = 35; // Height of the head in pixels
-                const adjustedTopPercentage = topPercentage - ((headOffset / laneHeight) * 100);
+                // Since the head is now at the bottom of the hold note structure,
+                // we need to position the entire note so the head aligns with the hit line
+                // Calculate the total height of the hold note
+                const holdNoteHeight = 35 + (note.duration / spawnWindow) * playableHeight + 35; // end + tail + head
+                const headPositionInNote = holdNoteHeight - 35; // Head is 35px from bottom
                 
-                note.element.style.top = `${Math.max(-10, Math.min(100, adjustedTopPercentage))}%`;
+                // Adjust so the head (not the top of the note) hits the hit line
+                const adjustedTopPercentage = topPercentage - ((headPositionInNote / laneHeight) * 100);
+                
+                note.element.style.top = `${Math.max(-50, Math.min(100, adjustedTopPercentage))}%`;
                 
                 // Check if head has passed the hit line
                 if (timeDiff < -150 && !note.holdStarted && !note.missed) {
@@ -574,11 +578,11 @@ function spawnRhythmNote(note) {
         // Calculate how long the hold note should be in pixels
         const holdLengthInPixels = (note.duration / spawnWindow) * playableHeight;
         
-        // FIXED: Restructure hold note to have head at top, tail below
+        // FIXED: Restructure hold note to have END at top, tail in middle, HEAD at bottom
         noteElement.innerHTML = `
-            <div class="rhythm-hold-head"></div>
-            <div class="rhythm-hold-tail" style="height: ${holdLengthInPixels}px;"></div>
             <div class="rhythm-hold-end"></div>
+            <div class="rhythm-hold-tail" style="height: ${holdLengthInPixels}px;"></div>
+            <div class="rhythm-hold-head"></div>
         `;
         
         // Store additional properties for hold notes

@@ -1526,8 +1526,8 @@ body {
     position: relative;
 }
 
-/* Hold note head (the part you initially hit) */
-.rhythm-hold-head {
+/* Hold note end (the release point) - positioned at the TOP */
+.rhythm-hold-end {
     width: 80%;
     height: 35px;
     border-radius: 10px;
@@ -1535,10 +1535,11 @@ body {
     position: relative;
     transition: all 0.2s ease;
     box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
-    order: 1; /* Ensure head is first */
+    background: rgba(255, 255, 255, 0.05);
+    order: 1; /* End comes first (at top) */
 }
 
-/* Hold note tail (the long part you hold) */
+/* Hold note tail (the long part you hold) - extends downward from end to head */
 .rhythm-hold-tail {
     width: 40%;
     min-height: 20px;
@@ -1552,8 +1553,21 @@ body {
     );
     position: relative;
     transition: all 0.3s ease;
-    order: 2; /* Tail comes after head */
+    order: 2; /* Tail comes in middle */
 }
+
+/* Hold note head (the part you initially hit) - positioned at the BOTTOM */
+.rhythm-hold-head {
+    width: 80%;
+    height: 35px;
+    border-radius: 10px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    position: relative;
+    transition: all 0.2s ease;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+    order: 3; /* Head comes last (at bottom where hit line is) */
+}
+
 
 /* Animated pattern inside hold tail */
 .rhythm-hold-tail::before {
@@ -1576,19 +1590,6 @@ body {
 @keyframes holdTailPattern {
     0% { transform: translateY(0); }
     100% { transform: translateY(-20px); }
-}
-
-/* Hold note end (the release point) */
-.rhythm-hold-end {
-    width: 80%;
-    height: 35px;
-    border-radius: 10px;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    position: relative;
-    transition: all 0.2s ease;
-    box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
-    background: rgba(255, 255, 255, 0.05);
-    order: 3; /* End comes last */
 }
 
 /* Lane-specific colors for hold notes */
