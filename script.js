@@ -441,111 +441,76 @@ function updateRhythmNotes(currentTime) {
     });
     rhythmActiveNotes = rhythmActiveNotes.filter(note => !notesToRemove.includes(note));
 }
-function updateHoldNotes(currentTime) {
-    // Check hold notes that are being held but key is released
-    rhythmHoldNotes.forEach(note => {
-        if (note.holding && !rhythmHeldKeys[note.lane]) {
-            // Key was released during hold
-            note.holding = false;
-            note.holdReleased = true;
-            note.missed = true;
-            
-            rhythmCombo = 0;
-            rhythmHits.miss++;
-            
-            if (note.element) {
-                note.element.classList.add('hold-failed');
-            }
-            
-            showRhythmJudgment(note.lane, 'DROPPED');
-            updateRhythmScoreDisplay();
-        }
+function updateRhythmNotes(currentTime) {
+    // Spawn window
+    const spawnWindow = 2000;
+    
+    // Spawn new notes
+    const notesToSpawn = rhythmNotes.filter(note => 
+        note.time > currentTime && 
+        note.time <= currentTime + spawnWindow && 
+        !note.spawned
+    );
+    
+    notesToSpawn.forEach(note => {
+        spawnRhythmNote(note);
+        note.spawned = true;
+        rhythmActiveNotes.push(note);
     });
     
-    // Check for hold notes that have passed their end time
-    rhythmHoldNotes.forEach(note => {
-        // Calculate timing for the end of the hold
-        const endTimeDiff = note.endTime - currentTime;
-        
-        // Check if the hold note's end has passed and the player is still holding
-        if (endTimeDiff < -200 && note.holding) {
-            // Successfully held until the end
-            note.holding = false;
-            note.holdReleased = true;
-            note.hit = true;
+    // Update positions of active notes
+    rhythmActiveNotes.forEach(note => {
+        if (note.element) {
+            const timeDiff = note.time - currentTime;
+            const noteArea = document.getElementById(`rhythm-note-area-${note.lane}`);
+            const laneHeight = noteArea.clientHeight;
+            const hitAreaHeight = 50;
+            const playableHeight = laneHeight - hitAreaHeight;
             
-            // Give points for completing the hold
-            let bonusPoints = 50; // Base points for completing hold
+            // Calculate progress (0 to 1)
+            let progress = 1 - (timeDiff / spawnWindow);
+            progress = Math.max(0, Math.min(1, progress));
             
-            rhythmScore += bonusPoints;
-            rhythmCombo++;
-            rhythmMaxCombo = Math.max(rhythmMaxCombo, rhythmCombo);
-            rhythmHits.perfect++; // Count as perfect when held properly
-            
-            // Visual feedback for successful hold completion
-            if (note.element) {
-                note.element.classList.add('hold-completed');
-                const holdEnd = note.element.querySelector('.rhythm-hold-end');
-                if (holdEnd) holdEnd.classList.add('hit');
+            if (note.type === 'hold' && note.duration) {
+                // For hold notes: we want the BOTTOM of the note to hit the target line
+                // So we need to offset the top position by the note's height
                 
-                setTimeout(() => {
-                    if (note.element && note.element.parentNode) {
-                        note.element.remove();
-                    }
-                }, 200);
+                const holdHeight = (note.duration / 1000) * rhythmFallSpeed;
+                const noteHeight = 30; // Height of the tap part
+                const totalNoteHeight = holdHeight;
+                
+                // Calculate where the top should be so the bottom hits the target
+                const targetPosition = progress * playableHeight; // Where bottom should be
+                const topPosition = targetPosition - totalNoteHeight; // Where top should be
+                
+                const topPercentage = (topPosition / laneHeight) * 100;
+                
+                note.element.style.top = `${topPercentage}%`;
+                note.element.style.bottom = 'auto';
+            } else {
+                // For regular tap notes, use the original logic
+                const topPosition = (progress * (playableHeight + 30)) - 30;
+                const topPercentage = (topPosition / laneHeight) * 100;
+                note.element.style.top = `${Math.max(0, Math.min(100, topPercentage))}%`;
+                note.element.style.bottom = 'auto';
             }
             
-            showRhythmJudgment(note.lane, 'PERFECT HOLD');
-            updateRhythmScoreDisplay();
-        }
-        // If player is still holding after a grace period, consider the hold finished
-        else if (endTimeDiff < -350 && note.holding) {
-            // Player held too long - but still complete it successfully
-            note.holding = false;
-            note.holdReleased = true;
-            note.hit = true;
-            
-            // Give reduced points
-            let bonusPoints = 30;
-            
-            rhythmScore += bonusPoints;
-            rhythmCombo++;
-            
-            // Visual feedback
-            if (note.element) {
-                note.element.classList.add('hold-completed');
-                setTimeout(() => {
-                    if (note.element && note.element.parentNode) {
-                        note.element.remove();
-                    }
-                }, 200);
+            // Check if note is missed
+            if (timeDiff < -200 && !note.hit && !note.missed) {
+                rhythmNoteMissed(note);
             }
-            
-            showRhythmJudgment(note.lane, 'GOOD HOLD');
-            updateRhythmScoreDisplay();
         }
     });
     
-    // Update visual feedback for active holds
-    ['d', 'f', 'j', 'k'].forEach(lane => {
-        const hitArea = document.querySelector(`.rhythm-hit-area-${lane}`);
-        if (!hitArea) return;
-        
-        const hasActiveHold = rhythmHoldNotes.some(note => 
-            note.lane === lane && note.holding
-        );
-        
-        if (hasActiveHold && rhythmHeldKeys[lane]) {
-            if (!hitArea.classList.contains('holding')) {
-                hitArea.classList.add('holding');
-            }
-        } else {
-            hitArea.classList.remove('holding');
-        }
-    });
+    // Remove notes that are far past
+    const notesToRemove = rhythmActiveNotes.filter(note => 
+        note.time < currentTime - 500
+    );
     
-    // Clean up completed hold notes
-    rhythmHoldNotes = rhythmHoldNotes.filter(note => note.holding);
+    notesToRemove.forEach(note => {
+        if (note.element) note.element.remove();
+    });
+    rhythmActiveNotes = rhythmActiveNotes.filter(note => !notesToRemove.includes(note));
 }
 function spawnRhythmNote(note) {
     const noteArea = document.getElementById(`rhythm-note-area-${note.lane}`);
@@ -569,14 +534,14 @@ function spawnRhythmNote(note) {
             <div class="hold-note-tail"></div>
         `;
         
-        // Position at bottom initially (off-screen above) - using percentage
-        noteElement.style.bottom = '100%';
-        noteElement.style.top = 'auto';
+        // Start off-screen above - position the top so the entire note is above the visible area
+        const laneHeight = noteArea.clientHeight;
+        const offScreenPosition = -(holdHeight / laneHeight) * 100; // Convert to percentage
+        noteElement.style.top = `${offScreenPosition}%`;
     } else {
         // Regular tap note
         noteElement.style.height = '30px';
-        noteElement.style.top = '0%';  // Start at top (off-screen above)
-        noteElement.style.bottom = 'auto';
+        noteElement.style.top = '-30px'; // Start just above the visible area
     }
     
     noteArea.appendChild(noteElement);
