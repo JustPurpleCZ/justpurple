@@ -371,7 +371,6 @@ function startRhythmGameLoop() {
     rhythmAnimationFrame = requestAnimationFrame(startRhythmGameLoop);
 }
 
-// Update rhythm notes position
 function updateRhythmNotes(currentTime) {
     // Spawn window
     const spawnWindow = 2000;
@@ -404,19 +403,21 @@ function updateRhythmNotes(currentTime) {
             
             // For hold notes, we need to position based on the BOTTOM of the note
             if (note.type === 'hold' && note.duration) {
-                // Calculate the position where the BOTTOM of the note should be
-                const bottomPosition = progress * playableHeight;
-                const bottomPercentage = (bottomPosition / laneHeight) * 100;
+                // Calculate where the TOP of the note should be positioned
+                const topPosition = (progress * (playableHeight + 30)) - 30;
+                const topPercentage = (topPosition / laneHeight) * 100;
                 
-                // Use bottom positioning instead of top
-                note.element.style.bottom = `${50 + (100 - bottomPercentage)}px`; // 50px for hit area height
-                note.element.style.top = 'auto'; // Clear any top positioning
+                // FIXED: Subtract the hold note height so the HEAD reaches the hit line
+                const holdHeight = parseFloat(note.element.style.height) || 100; // Get actual height
+                const holdHeightPercentage = (holdHeight / laneHeight) * 100;
+                const adjustedTopPercentage = topPercentage - holdHeightPercentage;
+                
+                note.element.style.top = `${Math.max(-holdHeightPercentage, Math.min(100, adjustedTopPercentage))}%`;
             } else {
                 // For regular tap notes, use the original logic
                 const topPosition = (progress * (playableHeight + 30)) - 30;
                 const topPercentage = (topPosition / laneHeight) * 100;
                 note.element.style.top = `${Math.max(0, Math.min(100, topPercentage))}%`;
-                note.element.style.bottom = 'auto'; // Clear any bottom positioning
             }
             
             // Check if note is missed
@@ -425,6 +426,9 @@ function updateRhythmNotes(currentTime) {
             }
         }
     });
+    
+    // Handle hold notes - process active holds separately
+    updateHoldNotes(currentTime);
     
     // Remove notes that are far past
     const notesToRemove = rhythmActiveNotes.filter(note => 
