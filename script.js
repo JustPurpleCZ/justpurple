@@ -371,7 +371,8 @@ function startRhythmGameLoop() {
     rhythmAnimationFrame = requestAnimationFrame(startRhythmGameLoop);
 }
 
-// Update rhythm notes position
+// Replace your updateRhythmNotes function with this corrected version:
+
 function updateRhythmNotes(currentTime) {
     // Spawn window
     const spawnWindow = 2000;
@@ -399,33 +400,24 @@ function updateRhythmNotes(currentTime) {
             const laneHeight = noteArea.clientHeight;
             const playableHeight = laneHeight;
             
-            // Calculate progress - when timeDiff = 0, the HEAD should be at the hit line
+            // Calculate progress - when timeDiff = 0, the note should be at the hit line
             let progress = 1 - (timeDiff / spawnWindow);
             progress = Math.max(0, Math.min(1, progress));
             
             if (note.isHold) {
-                // For hold notes, position so the HEAD (at bottom of note) reaches the hit line at the correct time
-                // The head should be at the hit line when timeDiff = 0
-                const topPosition = progress * playableHeight;
-                let topPercentage = (topPosition / laneHeight) * 100;
+                // FIXED: For hold notes, use bottom positioning so the head is the reference point
+                // When progress = 1, the head should be at the hit line (bottom: 0%)
+                const bottomPosition = (1 - progress) * 100; // Invert progress for bottom positioning
                 
-                // Since the head is now at the bottom of the hold note structure,
-                // we need to position the entire note so the head aligns with the hit line
-                // Calculate the total height of the hold note
-                const holdNoteHeight = 35 + (note.duration / spawnWindow) * playableHeight + 35; // end + tail + head
-                const headPositionInNote = holdNoteHeight - 35; // Head is 35px from bottom
-                
-                // Adjust so the head (not the top of the note) hits the hit line
-                const adjustedTopPercentage = topPercentage - ((headPositionInNote / laneHeight) * 100);
-                
-                note.element.style.top = `${Math.max(-50, Math.min(100, adjustedTopPercentage))}%`;
+                note.element.style.bottom = `${Math.max(0, Math.min(100, bottomPosition))}%`;
+                note.element.style.top = 'auto'; // Clear top positioning
                 
                 // Check if head has passed the hit line
                 if (timeDiff < -150 && !note.holdStarted && !note.missed) {
                     rhythmNoteMissed(note);
                 }
             } else {
-                // Regular notes - same as before
+                // Regular notes - same as before using top positioning
                 note.element.style.top = `${Math.max(0, Math.min(100, (progress * playableHeight / laneHeight) * 100))}%`;
                 
                 if (timeDiff < -150 && !note.hit && !note.missed) {
