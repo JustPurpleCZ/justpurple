@@ -394,156 +394,112 @@ function updateRhythmNotes(currentTime) {
         if (note.element) {
             const timeDiff = note.time - currentTime;
             const noteArea = document.getElementById(`rhythm-note-area-${note.lane}`);
-            const laneHeight = noteArea.clientHeight;
-            const hitAreaHeight = 50;
-            const playableHeight = laneHeight - hitAreaHeight;
+            if (!noteArea) return;
             
-            // Calculate progress (0 to 1)
+            const laneHeight = noteArea.clientHeight;
+            const playableHeight = laneHeight;
+            
+            // Calculate progress - when timeDiff = 0, the HEAD should be at the hit line
             let progress = 1 - (timeDiff / spawnWindow);
             progress = Math.max(0, Math.min(1, progress));
             
-            // For hold notes, we need to position based on the BOTTOM of the note
-            if (note.type === 'hold' && note.duration) {
-                // Calculate where the bottom of the note should be
-                // At progress = 0: note bottom should be at 100% (completely off-screen above)
-                // At progress = 1: note bottom should be at hit area top (playable height)
+            if (note.isHold) {
+                // For hold notes, position so the HEAD (at bottom of note) reaches the hit line at the correct time
+                // The head should be at the hit line when timeDiff = 0
+                const topPosition = progress * playableHeight;
+                let topPercentage = (topPosition / laneHeight) * 100;
                 
-                const bottomPosition = (1 - progress) * 100; // Inverted because bottom: 0% means at bottom
-                const hitAreaPercentage = (hitAreaHeight / laneHeight) * 100; // Convert hit area to percentage
+                // Since the head is now at the bottom of the hold note structure,
+                // we need to position the entire note so the head aligns with the hit line
+                // Calculate the total height of the hold note
+                const holdNoteHeight = 35 + (note.duration / spawnWindow) * playableHeight + 35; // end + tail + head
+                const headPositionInNote = holdNoteHeight - 35; // Head is 35px from bottom
                 
-                // Adjust so that at progress = 1, the bottom aligns with hit area
-                const adjustedBottomPercentage = bottomPosition + hitAreaPercentage;
+                // Adjust so the head (not the top of the note) hits the hit line
+                const adjustedTopPercentage = topPercentage - ((headPositionInNote / laneHeight) * 100);
                 
-                note.element.style.bottom = `${Math.max(0, Math.min(100, adjustedBottomPercentage))}%`;
-                note.element.style.top = 'auto'; // Clear any top positioning
+                note.element.style.top = `${Math.max(-50, Math.min(100, adjustedTopPercentage))}%`;
+                
+                // Check if head has passed the hit line
+                if (timeDiff < -150 && !note.holdStarted && !note.missed) {
+                    rhythmNoteMissed(note);
+                }
             } else {
-                // For regular tap notes, use the original logic
-                const topPosition = (progress * (playableHeight + 30)) - 30;
-                const topPercentage = (topPosition / laneHeight) * 100;
-                note.element.style.top = `${Math.max(0, Math.min(100, topPercentage))}%`;
-                note.element.style.bottom = 'auto'; // Clear any bottom positioning
-            }
-            
-            // Check if note is missed
-            if (timeDiff < -200 && !note.hit && !note.missed) {
-                rhythmNoteMissed(note);
+                // Regular notes - same as before
+                note.element.style.top = `${Math.max(0, Math.min(100, (progress * playableHeight / laneHeight) * 100))}%`;
+                
+                if (timeDiff < -150 && !note.hit && !note.missed) {
+                    rhythmNoteMissed(note);
+                }
             }
         }
     });
     
+    // Handle hold notes - process active holds separately
+    updateHoldNotes(currentTime);
+    
     // Remove notes that are far past
-    const notesToRemove = rhythmActiveNotes.filter(note => 
-        note.time < currentTime - 500
-    );
-    
-    notesToRemove.forEach(note => {
-        if (note.element) note.element.remove();
-    });
-    rhythmActiveNotes = rhythmActiveNotes.filter(note => !notesToRemove.includes(note));
-}
-function updateRhythmNotes(currentTime) {
-    // Spawn window
-    const spawnWindow = 2000;
-    
-    // Spawn new notes
-    const notesToSpawn = rhythmNotes.filter(note => 
-        note.time > currentTime && 
-        note.time <= currentTime + spawnWindow && 
-        !note.spawned
-    );
-    
-    notesToSpawn.forEach(note => {
-        spawnRhythmNote(note);
-        note.spawned = true;
-        rhythmActiveNotes.push(note);
-    });
-    
-    // Update positions of active notes
-    rhythmActiveNotes.forEach(note => {
-        if (note.element) {
-            const timeDiff = note.time - currentTime;
-            const noteArea = document.getElementById(`rhythm-note-area-${note.lane}`);
-            const laneHeight = noteArea.clientHeight;
-            const hitAreaHeight = 50;
-            const playableHeight = laneHeight - hitAreaHeight;
-            
-            // Calculate progress (0 to 1)
-            let progress = 1 - (timeDiff / spawnWindow);
-            progress = Math.max(0, Math.min(1, progress));
-            
-            if (note.type === 'hold' && note.duration) {
-                // For hold notes: we want the BOTTOM of the note to hit the target line
-                // So we need to offset the top position by the note's height
-                
-                const holdHeight = (note.duration / 1000) * rhythmFallSpeed;
-                const noteHeight = 30; // Height of the tap part
-                const totalNoteHeight = holdHeight;
-                
-                // Calculate where the top should be so the bottom hits the target
-                const targetPosition = progress * playableHeight; // Where bottom should be
-                const topPosition = targetPosition - totalNoteHeight; // Where top should be
-                
-                const topPercentage = (topPosition / laneHeight) * 100;
-                
-                note.element.style.top = `${topPercentage}%`;
-                note.element.style.bottom = 'auto';
-            } else {
-                // For regular tap notes, use the original logic
-                const topPosition = (progress * (playableHeight + 30)) - 30;
-                const topPercentage = (topPosition / laneHeight) * 100;
-                note.element.style.top = `${Math.max(0, Math.min(100, topPercentage))}%`;
-                note.element.style.bottom = 'auto';
-            }
-            
-            // Check if note is missed
-            if (timeDiff < -200 && !note.hit && !note.missed) {
-                rhythmNoteMissed(note);
-            }
+    const notesToRemove = rhythmActiveNotes.filter(note => {
+        if (note.isHold) {
+            return (note.hit || note.missed) && !note.holding;
+        } else {
+            return note.time < currentTime - 500;
         }
     });
     
-    // Remove notes that are far past
-    const notesToRemove = rhythmActiveNotes.filter(note => 
-        note.time < currentTime - 500
-    );
-    
     notesToRemove.forEach(note => {
         if (note.element) note.element.remove();
     });
+    
     rhythmActiveNotes = rhythmActiveNotes.filter(note => !notesToRemove.includes(note));
 }
+
 function spawnRhythmNote(note) {
     const noteArea = document.getElementById(`rhythm-note-area-${note.lane}`);
     if (!noteArea) return;
     
     const noteElement = document.createElement('div');
-    noteElement.className = `rhythm-game-note rhythm-game-note-${note.lane}`;
     
-    // Handle hold notes differently
+    // Check if it's a hold note
     if (note.type === 'hold' && note.duration) {
-        noteElement.classList.add('rhythm-hold-note');
+        // Create hold note with tail
+        noteElement.className = `rhythm-game-note rhythm-game-note-${note.lane} rhythm-hold-note`;
         
-        // Calculate hold note height based on duration
-        const holdHeight = (note.duration / 1000) * rhythmFallSpeed;
-        noteElement.style.height = `${holdHeight}px`;
+        // Calculate hold note length based on duration and fall speed
+        const spawnWindow = 2000; // Same as in updateRhythmNotes
+        const laneHeight = noteArea.clientHeight;
+        const playableHeight = laneHeight;
         
-        // Add visual elements for hold note
+        // Calculate how long the hold note should be in pixels
+        const holdLengthInPixels = (note.duration / spawnWindow) * playableHeight;
+        
+        // FIXED: Restructure hold note to have END at top, tail in middle, HEAD at bottom
         noteElement.innerHTML = `
-            <div class="hold-note-head"></div>
-            <div class="hold-note-body"></div>
-            <div class="hold-note-tail"></div>
+            <div class="rhythm-hold-end"></div>
+            <div class="rhythm-hold-tail" style="height: ${holdLengthInPixels}px;"></div>
+            <div class="rhythm-hold-head"></div>
         `;
         
-        // Start off-screen above - position the top so the entire note is above the visible area
-        const laneHeight = noteArea.clientHeight;
-        const offScreenPosition = -(holdHeight / laneHeight) * 100; // Convert to percentage
-        noteElement.style.top = `${offScreenPosition}%`;
+        // Store additional properties for hold notes
+        note.isHold = true;
+        note.holdStarted = false;
+        note.holding = false;
+        note.holdReleased = false;
+        note.endTime = note.time + note.duration;
     } else {
-        // Regular tap note
-        noteElement.style.height = '30px';
-        noteElement.style.top = '-30px'; // Start just above the visible area
+        // Regular note
+        noteElement.className = `rhythm-game-note rhythm-game-note-${note.lane}`;
+        note.isHold = false;
     }
     
+    // For hold notes, position from bottom so the head is the reference point
+    // For regular notes, position from top as usual
+    if (note.isHold) {
+        noteElement.style.bottom = '100%'; // Start off-screen at the top
+        noteElement.style.top = 'auto'; // Clear top positioning
+    } else {
+        noteElement.style.top = '0%'; // Regular notes from top
+    }
     noteArea.appendChild(noteElement);
     note.element = noteElement;
 }
