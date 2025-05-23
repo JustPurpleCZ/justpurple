@@ -963,8 +963,8 @@ body {
     left: 50%;
     /* Fix the transform to properly center and handle scaling */
     transform: translate(-50%, -50%) scale(0); 
-    width: 600px;
-    height: 70%;
+    width: 80%;
+    height: 100%;
     display: flex;
     gap: 15px;
     transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -977,7 +977,6 @@ body {
     /* Remove any right positioning */
     right: auto;
 }
-/* Lanes with your website's style */
 .rhythm-game-lane {
     flex: 1;
     position: relative;
@@ -1054,7 +1053,7 @@ body {
 
 /* Hit areas */
 .rhythm-hit-area {
-    position: absolute;
+    position: relative;
     bottom: 0; /* Ensure it's at the bottom */
     width: 100%;
     height: 80px;
@@ -1515,38 +1514,18 @@ body {
     }
 }
 .rhythm-hold-note {
+    height: auto !important;
+    min-height: 35px;
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
     display: flex;
     flex-direction: column;
-    position: relative;
+    align-items: center;
 }
 
-.hold-note-head {
-    height: 30px;
-    width: 100%;
-    border-radius: 5px;
-    flex-shrink: 0;
-}
-
-.hold-note-body {
-    flex: 1;
-    width: 80%;
-    margin: 0 auto;
-    border-radius: 3px;
-    opacity: 0.8;
-    min-height: 20px;
-}
-
-.hold-note-tail {
-    height: 30px;
-    width: 100%;
-    border-radius: 5px;
-    flex-shrink: 0;
-    border: 2px solid rgba(255, 255, 255, 0.6);
-    box-sizing: border-box;
-}
-
-/* Hold note end (the release point) - positioned at the TOP */
-.rhythm-hold-end {
+/* Hold note head (the part you initially hit) */
+.rhythm-hold-head {
     width: 80%;
     height: 35px;
     border-radius: 10px;
@@ -1554,11 +1533,9 @@ body {
     position: relative;
     transition: all 0.2s ease;
     box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
-    background: rgba(255, 255, 255, 0.05);
-    order: 1; /* End comes first (at top) */
 }
 
-/* Hold note tail (the long part you hold) - extends downward from end to head */
+/* Hold note tail (the long part you hold) */
 .rhythm-hold-tail {
     width: 40%;
     min-height: 20px;
@@ -1572,21 +1549,7 @@ body {
     );
     position: relative;
     transition: all 0.3s ease;
-    order: 2; /* Tail comes in middle */
 }
-
-/* Hold note head (the part you initially hit) - positioned at the BOTTOM */
-.rhythm-hold-head {
-    width: 80%;
-    height: 35px;
-    border-radius: 10px;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    position: relative;
-    transition: all 0.2s ease;
-    box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
-    order: 3; /* Head comes last (at bottom where hit line is) */
-}
-
 
 /* Animated pattern inside hold tail */
 .rhythm-hold-tail::before {
@@ -1609,6 +1572,18 @@ body {
 @keyframes holdTailPattern {
     0% { transform: translateY(0); }
     100% { transform: translateY(-20px); }
+}
+
+/* Hold note end (the release point) */
+.rhythm-hold-end {
+    width: 80%;
+    height: 35px;
+    border-radius: 10px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    position: relative;
+    transition: all 0.2s ease;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.05);
 }
 
 /* Lane-specific colors for hold notes */
@@ -1941,34 +1916,4 @@ body {
     0% { transform: scale(0.5); opacity: 0; }
     50% { transform: scale(1.2); opacity: 1; }
     100% { transform: scale(1); opacity: 1; }
-}
-.rhythm-hold-note {
-    display: flex;
-    flex-direction: column;
-    position: relative;
-}
-
-.hold-note-head {
-    height: 30px;
-    width: 100%;
-    border-radius: 5px;
-    flex-shrink: 0;
-}
-
-.hold-note-body {
-    flex: 1;
-    width: 80%;
-    margin: 0 auto;
-    border-radius: 3px;
-    opacity: 0.8;
-    min-height: 20px;
-}
-
-.hold-note-tail {
-    height: 30px;
-    width: 100%;
-    border-radius: 5px;
-    flex-shrink: 0;
-    border: 2px solid rgba(255, 255, 255, 0.6);
-    box-sizing: border-box;
 }
