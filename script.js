@@ -85,7 +85,7 @@ const cardSongs = {
     3: {
         title: "Polumnia Omnia",
         audio: "party/music/Polumnia Omnia.mp3",
-        map: "party/music/Polumnia.json"
+        map: "party/music/polumnia.json"
     },
     4: {
         title: "Ambient",
