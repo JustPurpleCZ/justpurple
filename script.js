@@ -1339,15 +1339,46 @@ function updateParallax(e) {
 // Add mouse move event listener for parallax
 document.addEventListener('mousemove', updateParallax);
 
-// Handle touch movement for mobile
 document.addEventListener('touchmove', (e) => {
-    e.preventDefault();
-    updateParallax({
-        clientX: e.touches[0].clientX,
-        clientY: e.touches[0].clientY
-    });
-}, { passive: false });
+    // Check if this is a vertical scroll gesture
+    const touch = e.touches[0];
+    const startY = touch.clientY;
+    
+    // Store the initial touch position
+    if (!window.touchStartY) {
+        window.touchStartY = startY;
+    }
+    
+    const deltaY = Math.abs(startY - window.touchStartY);
+    const deltaX = Math.abs(touch.clientX - (window.touchStartX || touch.clientX));
+    
+    // If it's primarily a vertical movement (scrolling), don't prevent default
+    if (deltaY > deltaX && deltaY > 10) {
+        // This is a scroll gesture, allow it
+        return;
+    }
+    
+    // Only prevent default and apply parallax for horizontal/small movements
+    if (deltaY <= 10) {
+        e.preventDefault();
+        updateParallax({
+            clientX: touch.clientX,
+            clientY: touch.clientY
+        });
+    }
+});
 
+// Track touch start for better gesture detection
+document.addEventListener('touchstart', (e) => {
+    window.touchStartY = e.touches[0].clientY;
+    window.touchStartX = e.touches[0].clientX;
+});
+
+// Clean up touch tracking
+document.addEventListener('touchend', () => {
+    window.touchStartY = null;
+    window.touchStartX = null;
+});
 // Animation function
 function animateLetters() {
     const letters = document.querySelectorAll('.letter');
