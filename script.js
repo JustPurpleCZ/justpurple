@@ -79,7 +79,7 @@ const cardSongs = {
     },
     2: {
         title: "Ellen Joe theme", 
-        audio: "party/music/ellentheme.mp3",
+        audio: "party/music/ellenTheme.mp3",
         map: "party/music/ellen.json"
     },
     3: {
