@@ -79,7 +79,7 @@ const cardSongs = {
     },
     2: {
         title: "Ellen Joe theme", 
-        audio: "party/music/ellenTheme.mp3",
+        audio: "party/music/ellentheme.mp3",
         map: "party/music/ellen.json"
     },
     3: {
@@ -88,14 +88,14 @@ const cardSongs = {
         map: "party/music/polumnia.json"
     },
     4: {
-        title: "Ambient",
-        audio: "party/music/ambient.mp3", 
-        map: "party/music/ambient.json"
+        title: "Tenebre Rosso Sangue",
+        audio: "party/music/church.mp3", 
+        map: "party/music/pain.json"
     },
     5: {
-        title: "Jazz Fusion",
-        audio: "party/music/jazz.mp3",
-        map: "party/music/jazz.json"
+        title: "Lustre",
+        audio: "party/music/lustre.mp3",
+        map: "party/music/painpremium.json"
     }
 };
 
