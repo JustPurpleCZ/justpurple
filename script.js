@@ -1,12 +1,11 @@
 const name = "ADAM ZAHOR";
 let activeCard = null;
 let cardsVisible = false;
-let cardSlotPositions = [0, 0, 0, 0, 0];
+let cardsAnimating = false;
 
 // Interface state variables
 let interfaceExpanded = false;
 let horizontalCardsVisible = false;
-let cardsAnimating = false;
 
 // Letter definitions using triangle types (0: none, 1: top-left, 2: top-right, 3: bottom-left, 4: bottom-right)
 const letterDefinitions = {
@@ -1854,38 +1853,15 @@ function handleTouchParallax() {
     }
 }
 
-// Function to initialize the cards
 function initializeCards() {
     const cards = document.querySelectorAll('.card');
-    const cardsContainer = document.querySelector('.cards-container');
     
-    // Calculate slot positions based on container width
-    calculateCardSlotPositions();
-    
-    // Assign each card to its initial slot
+    // Set initial order for each card
     cards.forEach((card, index) => {
-        // Set initial slot
-        card.setAttribute('data-slot', index);
-        
-        // Position card in its slot
-        positionCardInSlot(card, index);
-        
-        // Add click handler
+        card.setAttribute('data-original-order', index);
+        card.setAttribute('data-current-order', index);
         card.addEventListener('click', () => {
             handleCardClick(card);
-        });
-    });
-    
-    // Add window resize handler to recalculate positions when screen size changes
-    window.addEventListener('resize', () => {
-        calculateCardSlotPositions();
-        
-        // Reposition all cards in their current slots
-        cards.forEach(card => {
-            const currentSlot = parseInt(card.getAttribute('data-slot'));
-            if (card !== activeCard) {
-                positionCardInSlot(card, currentSlot);
-            }
         });
     });
 }
@@ -1962,36 +1938,14 @@ function handleCardClick(card) {
     }
 }
 
-// Activate a card (move to content box and expand)
 function activateCard(card) {
-    // Store the current slot
-    const currentSlot = parseInt(card.getAttribute('data-slot'));
-    card.setAttribute('data-original-slot', currentSlot);
+    const currentOrder = parseInt(card.getAttribute('data-current-order'));
     
-    // Get content box dimensions and position
-    const contentBox = document.querySelector('.content-box');
-    const contentBoxRect = contentBox.getBoundingClientRect();
-    
-    // Get card's current position
-    const cardRect = card.getBoundingClientRect();
-    
-    // First, fix the card in its current position
-    card.style.position = 'fixed';
-    card.style.top = `${cardRect.top}px`;
-    card.style.left = `${cardRect.left}px`;
-    card.style.width = `${cardRect.width}px`;
-    card.style.height = `${cardRect.height}px`;
-    card.style.zIndex = '20';
-    
-    // Force reflow
-    void card.offsetHeight;
-    
-    // Then animate to content box position
+    // Add active class for styling
     card.classList.add('active');
-    card.style.width = `${contentBoxRect.width}px`;
-    card.style.height = `${contentBoxRect.height}px`;
-    card.style.top = `${contentBoxRect.top}px`;
-    card.style.left = `${contentBoxRect.left}px`;
+    
+    // Shuffle cards: move all cards to the right of clicked card one position left
+    shuffleCardsLeft(currentOrder);
     
     // Flip card after it reaches destination
     setTimeout(() => {
@@ -2000,9 +1954,6 @@ function activateCard(card) {
     
     // Set as active card
     activeCard = card;
-    
-    // Move other cards to fill the gap
-    shiftCardsAfterActivation(currentSlot);
 }
 
 // Shift cards after a card has been activated
@@ -2023,80 +1974,89 @@ function shiftCardsAfterActivation(activatedSlot) {
         }
     });
 }
-
-// Deactivate the currently active card
+function shuffleCardsLeft(activatedOrder) {
+    const cards = document.querySelectorAll('.card');
+    
+    cards.forEach((card, index) => {
+        if (card === activeCard) return;
+        
+        const currentOrder = parseInt(card.getAttribute('data-current-order'));
+        
+        // If card is to the right of activated card, move it left
+        if (currentOrder > activatedOrder) {
+            const newOrder = currentOrder - 1;
+            card.setAttribute('data-current-order', newOrder);
+            
+            // Add staggered animation delay
+            setTimeout(() => {
+                updateCardOrder(card, newOrder);
+            }, index * 50); // Staggered timing
+        }
+    });
+}
 function deactivateCard() {
     if (!activeCard) return;
     
-    // First, reset the flip animation
+    // Reset the flip animation
     activeCard.querySelector('.card-inner').style.transform = '';
-    const originalCard = activeCard;
-   
-    // Move the card to slot 4 (rightmost)
-    moveCardToRightmost(originalCard);
+    
+    // Remove active class
+    activeCard.classList.remove('active');
+    
+    // Move deactivated card to rightmost position
+    moveCardToRightmost(activeCard);
     
     // Clear active card reference
     activeCard = null;
-    
-    // Remove active class and reset styles after movement
-    originalCard.classList.remove('active');
-    originalCard.style.position = 'absolute';
-    originalCard.style.zIndex = '1';
-    originalCard.style.top = '';
-    originalCard.style.bottom = '0';
-    originalCard.style.width = '180px'; // Reset to original width
-    originalCard.style.height = '240px'; // Reset to original height
-    
-    // Also apply responsive sizing if needed
-    if (window.innerWidth <= 992 && window.innerWidth > 600) {
-        originalCard.style.width = '150px';
-        originalCard.style.height = '200px';
-    } else if (window.innerWidth <= 600) {
-        originalCard.style.width = '120px';
-        originalCard.style.height = '170px';
-    }
 }
-
-// Move a card to the rightmost position (slot 4)
 function moveCardToRightmost(card) {
     const cards = document.querySelectorAll('.card');
+    const totalCards = cards.length;
     
-    // First, find any card that's in slot 4
-    let cardInLastSlot = null;
-    cards.forEach(c => {
-        if (parseInt(c.getAttribute('data-slot')) === 4 && c !== card) {
-            cardInLastSlot = c;
+    // Add moving class to all affected cards
+    cards.forEach(c => c.classList.add('moving'));
+    
+    // Update the deactivated card's order
+    card.setAttribute('data-current-order', totalCards - 1);
+    updateCardOrder(card, totalCards - 1);
+    
+    // Animate other cards that need to shift
+    cards.forEach((otherCard, index) => {
+        if (otherCard === card) return;
+        
+        const currentOrder = parseInt(otherCard.getAttribute('data-current-order'));
+        
+        if (currentOrder >= totalCards - 1) {
+            const newOrder = currentOrder - 1;
+            otherCard.setAttribute('data-current-order', newOrder);
+            
+            setTimeout(() => {
+                updateCardOrder(otherCard, newOrder);
+            }, index * 50);
         }
     });
     
-    // Move all cards one slot to the left to make room
-    // but only if our card isn't already in the last slot
-    if (parseInt(card.getAttribute('data-slot')) !== 4) {
-        // Shift all cards in slots 3 and below left by one
-        cards.forEach(c => {
-            if (c !== card) {
-                const currentSlot = parseInt(c.getAttribute('data-slot'));
-                if (currentSlot < 4) {
-                    // Move left
-                    positionCardInSlot(c, currentSlot);
-                }
-            }
-        });
-        
-        // If there was a card in slot 4, move it to slot 3
-        if (cardInLastSlot) {
-            positionCardInSlot(cardInLastSlot, 3);
-        }
-        
-        // Position our card in slot 4
-        card.style.transition = 'all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
-        positionCardInSlot(card, 4);
-    }
+    // Remove moving classes after animation
+    setTimeout(() => {
+        cards.forEach(c => c.classList.remove('moving'));
+    }, 1000);
+}
+function updateCardOrder(card, order) {
+    // Add moving class for animation
+    card.classList.add('moving');
+    
+    // Set the new order
+    card.style.order = order;
+    
+    // Remove moving class after animation completes
+    setTimeout(() => {
+        card.classList.remove('moving');
+    }, 800); // Match the CSS transition duration
 }
 
 // UPDATED handleImageClick function using class system
 function handleImageClick() {
-    if (interfaceExpanded) return; // Prevent multiple activations
+    if (interfaceExpanded) return;
     
     interfaceExpanded = true;
     
@@ -2115,7 +2075,7 @@ function handleImageClick() {
     const contentBox = document.querySelector('.content-box');
     contentBox.style.transform = 'translateX(-100vw)';
     
-    // 3. Hide rhomboids by removing active class (except the return button)
+    // 3. Hide rhomboids
     const rhomboids = document.querySelectorAll('.rhomboid:not(#return-button)');
     rhomboids.forEach((rhomboid) => {
         rhomboid.classList.remove('wave');
@@ -2130,26 +2090,23 @@ function handleImageClick() {
     const circularImage = document.querySelector('.circular-image');
     circularImage.classList.add('expanded');
     
-    // 5. Show existing horizontal cards coming from the right
+    // 5. Show horizontal cards
     setTimeout(showHorizontalCards, 600);
     
-    // 6. Show return button by adding active class
+    // 6. Show return button
     const returnButton = document.getElementById('return-button');
     if (returnButton) {
         returnButton.classList.remove('active');
         setTimeout(() => {
-            // Clear inline transform and add active class
             returnButton.style.transform = '';
             returnButton.classList.add('active');
         }, 800);
         setTimeout(() => {
             returnButton.classList.add('wave');      
         }, 2400);
-    } else {
-        console.log('Return button not found!'); // Debug log
     }
     
-    // 7. Reattach rhythm game listeners after interface expansion
+    // 7. Reattach rhythm game listeners
     setTimeout(attachCardClickListeners, 1200);
 }
 
@@ -2216,20 +2173,24 @@ function hideHorizontalCards() {
     horizontalCardsVisible = false;
 }
 
-// UPDATED resetInterface function using class system
 function resetInterface() {
     if (!interfaceExpanded) return;
+    
     hideHorizontalCards();
-    closeRhythmGame()
+    closeRhythmGame();
+    
     const returnButton = document.getElementById('return-button');
     if (returnButton) {
         returnButton.classList.remove('wave'); 
         returnButton.classList.remove('active');
     }
+    
     const circularImage = document.querySelector('.circular-image');
     circularImage.classList.remove('expanded');
+    
     const contentBox = document.querySelector('.content-box');
     contentBox.style.transform = 'translateY(0)';
+    
     const rhomboids = document.querySelectorAll('.rhomboid:not(#return-button)');
     rhomboids.forEach((rhomboid, index) => {
         rhomboid.style.transform = 'translateX(400px)';
@@ -2242,6 +2203,7 @@ function resetInterface() {
             }, 1500);
         }, 300 + (index * 100));
     });
+    
     const cards = document.querySelectorAll('.card');
     cards.forEach((card, index) => {
         setTimeout(() => {
@@ -2249,6 +2211,7 @@ function resetInterface() {
             card.style.opacity = '1';
         }, 600 + (index * 50));
     });
+    
     setTimeout(() => {
         interfaceExpanded = false;
         horizontalCardsVisible = false;
