@@ -2,7 +2,9 @@ const name = "ADAM ZAHOR";
 let activeCard = null;
 let cardsVisible = false;
 let cardsAnimating = false;
-
+let currentSection = 0; // 0 = intro, 1 = home, 2 = projects
+let isScrolling = false;
+let scrollTimeout;
 // Interface state variables
 let interfaceExpanded = false;
 let horizontalCardsVisible = false;
@@ -1719,112 +1721,34 @@ function finalAnimation() {
 window.addEventListener('scroll', () => {
     if (!animationComplete) return;
     
-    // Calculate scroll percentage (0 to 1)
+    // Clear previous timeout
+    clearTimeout(scrollTimeout);
+    
+    // Determine which section we're in
     const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-    const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-    const scrollPercentage = Math.min(1, scrollTop / (scrollHeight / 4)); // Transition in first quarter of scroll
+    const windowHeight = window.innerHeight;
     
-    // Apply transformation based on scroll percentage
-    const animationContainer = document.getElementById('animation-container');
-    const taglineContainer = document.getElementById('tagline-container');
-    const contentContainer = document.querySelector('.content-container');
-    const circularImage = document.querySelector('.circular-image');
-    const contentBox = document.querySelector('.content-box');
-    const scrollIndicator = document.querySelector('.scroll-indicator');
-    const cards = document.querySelectorAll('.card');
-    const cardc = document.querySelector('.cards-container');
-    
-    // For smooth shrinking before slide
-    if (scrollPercentage <= 0.3) { // Adjusted threshold to hide tagline quicker
-        // Only shrink during the first 30% of the scroll transition
-        const scale = 1 - (scrollPercentage * 1.5); // Scale from 1 down to 0.4
-        const scaleValue = Math.max(0.4, scale);
-        
-        // Keep in center but shrink
-        animationContainer.style.transform = `translate(-50%, -50%) scale(${scaleValue})`;
-        animationContainer.classList.remove('scrolled');
-        
-        // Tagline should be visible but fading out as we scroll
-        taglineContainer.classList.remove('scrolled');
-        // Fade out tagline more rapidly
-        taglineContainer.style.opacity = Math.max(0, 1 - (scrollPercentage * 3.3));
-        
-        // Hide content elements
-        contentContainer.classList.remove('visible');
-        circularImage.classList.remove('scrolled');
-        contentBox.classList.remove('scrolled');
-        
-        // Only remove scrolled class from cards if cards aren't currently animating
-        if (!cardsAnimating && cardsVisible) {
-            cardsAnimating = true;
-            cardsVisible = false;
-            cardc.classList.remove('visible');
-            
-            // Use a staggered removal with delay
-            cards.forEach((card, index) => {
-                setTimeout(() => {
-                    card.classList.remove('scrolled');
-                    
-                    // Only reset the animation flag after the last card
-                    if (index === cards.length - 1) {
-                        setTimeout(() => {
-                            cardsAnimating = false;
-                        }, 200); // Buffer time after last card
-                    }
-                }, index * 50);
-            });
-        }
-        
-        // Show scroll indicator
-        scrollIndicator.style.opacity = '1';
-    } 
-    // When we've shrunk enough, slide to corner and show content
-    else {
-        // Add scrolled class to apply the corner position
-        animationContainer.classList.add('scrolled');
-        animationContainer.style.transform = ''; // Remove inline transform to use the CSS class
-        
-        // Force tagline to be completely hidden when scrolled
-        taglineContainer.classList.add('scrolled');
-        taglineContainer.style.opacity = '0';
-        
-        contentContainer.classList.add('visible');
-        
-        // Show the new content elements
-        if (scrollPercentage > 0.5) { // Adjusted threshold for showing content
-            circularImage.classList.add('scrolled');
-            contentBox.classList.add('scrolled');
-            
-            // Only add scrolled class to cards if cards aren't currently animating
-            if (!cardsAnimating && !cardsVisible) {
-                cardsAnimating = true;
-                cardsVisible = true;
-                cardc.classList.add('visible');
-                
-                // Initialize cards first if needed
-                if (!activeCard) {
-                    initializeCards();
-                }
-                
-                // Use a staggered application with delay
-                cards.forEach((card, index) => {
-                    setTimeout(() => {
-                        card.classList.add('scrolled');
-                        
-                        // Only reset the animation flag after the last card
-                        if (index === cards.length - 1) {
-                            setTimeout(() => {
-                                cardsAnimating = false;
-                            }, 200); // Buffer time after last card
-                        }
-                    }, index * 100);
-                });
-            }
-            
-            // Hide scroll indicator
-            scrollIndicator.style.opacity = '0';
-        }
+    let newSection;
+    if (scrollTop < windowHeight * 0.5) {
+        newSection = 0; // Intro
+    } else if (scrollTop < windowHeight * 1.5) {
+        newSection = 1; // Home
+    } else {
+        newSection = 2; // Projects
     }
+    
+    // Only update if section changed
+    if (newSection !== currentSection) {
+        currentSection = newSection;
+        updateSectionDisplay();
+    }
+    
+    // Set scrolling flag and clear it after scroll ends
+    isScrolling = true;
+    scrollTimeout = setTimeout(() => {
+        isScrolling = false;
+        snapToSection();
+    }, 150);
 });
 
 // Function to handle parallax effect for touch devices
@@ -1959,10 +1883,6 @@ function activateCard(card) {
 // Shift cards after a card has been activated
 function shiftCardsAfterActivation(activatedSlot) {
     const cards = document.querySelectorAll('.card');
-    
-    // The activated card is now conceptually in slot 4 (rightmost)
-    // Move all other cards to slots 0-3
-    
     cards.forEach(card => {
         if (card !== activeCard) {
             const currentSlot = parseInt(card.getAttribute('data-slot'));
@@ -2217,12 +2137,252 @@ function resetInterface() {
         horizontalCardsVisible = false;
     }, 1200);
 }
+// Projects section variables
+let projectsVisible = false;
+let currentProject = 0;
+const totalProjects = 4;
+
+// Project navigation functions
+function nextProject() {
+    if (currentProject < totalProjects - 1) {
+        goToProject(currentProject + 1);
+    }
+}
+
+function previousProject() {
+    if (currentProject > 0) {
+        goToProject(currentProject - 1);
+    }
+}
+
+function goToProject(index) {
+    if (index === currentProject) return;
+    
+    currentProject = index;
+    
+    // Update folder visibility
+    const folders = document.querySelectorAll('.folder');
+    folders.forEach((folder, i) => {
+        folder.classList.toggle('active', i === currentProject);
+    });
+    
+    // Update dot indicators
+    const dots = document.querySelectorAll('.project-dot');
+    dots.forEach((dot, i) => {
+        dot.classList.toggle('active', i === currentProject);
+    });
+    
+    // Update corner images with staggered animation
+    updateCornerImages();
+}
+
+function updateCornerImages() {
+    const cornerImages = document.querySelectorAll('.corner-image');
+    const imageUrls = [
+        `projects/sidepics/${currentProject * 4 + 1}.gif`,
+        `projects/sidepics/${currentProject * 4 + 2}.gif`,
+        `projects/sidepics/${currentProject * 4 + 3}.gif`,
+        `projects/sidepics/${currentProject * 4 + 4}.gif`
+    ];
+    
+    cornerImages.forEach((img, index) => {
+        setTimeout(() => {
+            img.classList.remove('animate');
+            setTimeout(() => {
+                img.src = imageUrls[index];
+                img.classList.add('animate');
+            }, 350);
+        }, index * 80);
+    });
+}
+
 
 // Initialize everything
 window.addEventListener('resize', adjustSpaceWidth);
 adjustSpaceWidth();
 handleTouchParallax();
+function snapToSection() {
+    const windowHeight = window.innerHeight;
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    
+    let targetScroll;
+    if (currentSection === 0) {
+        targetScroll = 0;
+    } else if (currentSection === 1) {
+        targetScroll = windowHeight;
+    } else {
+        targetScroll = windowHeight * 2;
+    }
+    
+    // Only snap if we're not already close to the target
+    if (Math.abs(scrollTop - targetScroll) > 50) {
+        window.scrollTo({
+            top: targetScroll,
+            behavior: 'smooth'
+        });
+    }
+}
 
+function updateSectionDisplay() {
+    const animationContainer = document.getElementById('animation-container');
+    const taglineContainer = document.getElementById('tagline-container');
+    const contentContainer = document.querySelector('.content-container');
+    const circularImage = document.querySelector('.circular-image');
+    const contentBox = document.querySelector('.content-box');
+    const scrollIndicator = document.querySelector('.scroll-indicator');
+    const cards = document.querySelectorAll('.card');
+    const cardc = document.querySelector('.cards-container');
+    const projectsSection = document.querySelector('.projects-section');
+    
+    if (currentSection === 0) {
+        // Intro Section - Show name animation
+        animationContainer.style.transform = 'translate(-50%, -50%) scale(1)';
+        animationContainer.classList.remove('scrolled');
+        
+        taglineContainer.classList.remove('scrolled');
+        taglineContainer.style.opacity = '1';
+        
+        contentContainer.classList.remove('visible');
+        circularImage.classList.remove('scrolled');
+        contentBox.classList.remove('scrolled');
+        
+        projectsSection.classList.remove('visible');
+        projectsVisible = false;
+        
+        if (cardsVisible) {
+            cardsVisible = false;
+            cardc.classList.remove('visible');
+            cards.forEach((card, index) => {
+                setTimeout(() => {
+                    card.classList.remove('scrolled');
+                }, index * 50);
+            });
+        }
+        
+        scrollIndicator.style.opacity = '1';
+        
+    } else if (currentSection === 1) {
+        // Home Section - Show content box and cards
+        animationContainer.classList.add('scrolled');
+        animationContainer.style.transform = '';
+        
+        taglineContainer.classList.add('scrolled');
+        taglineContainer.style.opacity = '0';
+        
+        contentContainer.classList.add('visible');
+        circularImage.classList.add('scrolled');
+        contentBox.classList.add('scrolled');
+        
+        projectsSection.classList.remove('visible');
+        projectsVisible = false;
+        
+        if (!cardsVisible) {
+            cardsVisible = true;
+            cardc.classList.add('visible');
+            
+            if (!activeCard) {
+                initializeCards();
+            }
+            
+            cards.forEach((card, index) => {
+                setTimeout(() => {
+                    card.classList.add('scrolled');
+                }, index * 100);
+            });
+        }
+        // Unanimate the projects
+        const cornerImages = document.querySelectorAll('.corner-image');
+        cornerImages.forEach((img) => {
+                img.classList.remove('animate');
+        });
+        const navArrows = document.querySelectorAll('.project-nav');
+        navArrows.forEach((arrow) => {
+                arrow.classList.remove('animate');
+        });
+        const folderStack = document.querySelector('.folder-stack');
+        folderStack.classList.remove('animate');
+
+        scrollIndicator.style.opacity = '0';
+        
+    } else if (currentSection === 2) {
+        // Projects Section
+        contentContainer.classList.remove('visible');
+        circularImage.classList.remove('scrolled');
+        contentBox.classList.remove('scrolled');
+        if (cardsVisible) {
+            cardsVisible = false;
+            cardc.classList.remove('visible');
+            cards.forEach((card, index) => {
+                setTimeout(() => {
+                    card.classList.remove('scrolled');
+                }, index * 50);
+            });
+        }
+        if (!projectsVisible) {
+            projectsVisible = true;
+            projectsSection.classList.add('visible');
+            // Animate folder stack
+            setTimeout(() => {
+                const folderStack = document.querySelector('.folder-stack');
+                folderStack.classList.add('animate');
+            }, 200);
+            // Animate corner images
+            setTimeout(() => {
+                const cornerImages = document.querySelectorAll('.corner-image');
+                cornerImages.forEach((img, index) => {
+                    setTimeout(() => {
+                        img.classList.add('animate');
+                    }, index * 100);
+                });
+            }, 400);
+            
+            // Animate navigation arrows
+            setTimeout(() => {
+                const navArrows = document.querySelectorAll('.project-nav');
+                navArrows.forEach((arrow, index) => {
+                    setTimeout(() => {
+                        arrow.classList.add('animate');
+                    }, index * 100);
+                });
+            }, 600);
+            
+        }
+    }
+}
+
+function goToSection(section) {
+    const windowHeight = window.innerHeight;
+    let targetScroll;
+    
+    if (section === 0) {
+        targetScroll = 0;
+    } else if (section === 1) {
+        targetScroll = windowHeight;
+    } else if (section === 2) {
+        targetScroll = windowHeight * 2;
+    }
+    
+    window.scrollTo({
+        top: targetScroll,
+        behavior: 'smooth'
+    });
+}
+// Add keyboard navigation for sections
+document.addEventListener('keydown', (e) => {
+    if (!animationComplete) return;
+    
+    if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+        e.preventDefault();
+        if (currentSection < 2) {
+            goToSection(currentSection + 1);
+        }
+    } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+        e.preventDefault();
+        if (currentSection > 0) {
+            goToSection(currentSection - 1);
+        }
+    }
+});
 // Add click event to circular image
 document.addEventListener('DOMContentLoaded', function() {
     const circularImage = document.querySelector('.circular-image');

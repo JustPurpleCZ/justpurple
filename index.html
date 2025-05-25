@@ -8,6 +8,9 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <div class="scroll-section intro-section"></div>
+    <div class="scroll-section home-section"></div>
+    <div class="scroll-section projects-section-scroll"></div>
     <div class="rotate-device-overlay">
         <div class="rotate-device-icon"></div>
         <div class="rotate-device-title">Rotate Your Device</div>
@@ -124,7 +127,98 @@
             </div>
         </div>
     </div>
-    
+    <div class="projects-section">
+        <!-- Corner Images -->
+        <div class="corner-images">
+            <img src="projects/sidepics/1.gif" alt="Project Image 1" class="corner-image top-left">
+            <img src="projects/sidepics/2.gif" alt="Project Image 2" class="corner-image top-right">
+            <img src="projects/sidepics/3.gif" alt="Project Image 3" class="corner-image bottom-left">
+            <img src="projects/sidepics/4.gif" alt="Project Image 4" class="corner-image bottom-right">
+        </div>
+
+        <!-- Navigation Arrows -->
+        <div class="project-nav prev" onclick="previousProject()">‹</div>
+        <div class="project-nav next" onclick="nextProject()">›</div>
+
+        <!-- Folder Stack -->
+        <div class="folder-stack">
+            <!-- Project 1 -->
+            <div class="folder active" data-project="0">
+                <div class="folder-content">
+                    <div class="folder-image">
+                        <img src="projects/brm.png" alt="malenovice">
+                    </div>
+                    <div class="folder-info">
+                        <h1 class="folder-title">Breaking Malenovice</h1>
+                        <p class="folder-description">
+                            A passion project of me and some of my older classmates that started all the way back in 2021 in scratch. It went through multiple resets but the main premise remained roughly the same.
+                            2.5D pixelated game about a drug dealer and his silly little acts.
+                        </p>
+                        <a href="#" class="folder-button">Planned release 2028</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Project 2 -->
+            <div class="folder" data-project="1">
+                <div class="folder-content">
+                    <div class="folder-image">
+                        <img src="projects/gambling.png" alt="GAMBLING">
+                    </div>
+                    <div class="folder-info">
+                        <h1 class="folder-title">Groovy Gamble</h1>
+                        <p class="folder-description">
+                            A "side project" we started doing while working on Breaking Malenovice that quickly surpassed it in both complexity and playabilty. 
+                            It's technically just a gambling simulator that's to have some multiplayer games like black jack and semi multiplayer games like horse derby.
+                        </p>
+                        <a href="https://justpurplecz.github.io/Gambling/" class="folder-button">View Project</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Project 3 -->
+            <div class="folder" data-project="2">
+                <div class="folder-content">
+                    <div class="folder-image">
+                        <img src="https://picsum.photos/400/300?random=7" alt="Genshin web">
+                    </div>
+                    <div class="folder-info">
+                        <h1 class="folder-title">Genshin Impact Presentation</h1>
+                        <p class="folder-description">
+                            A school project that I spent way too much time on. A simple presentation of the game's main mechanics, regions, characters and a music player and visualizer. 
+                            To this day remains unfinished  
+                        </p>
+                        <a href="#" class="folder-button">View Project</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Project 4 -->
+            <div class="folder" data-project="3">
+                <div class="folder-content">
+                    <div class="folder-image">
+                        <img src="https://picsum.photos/400/300?random=8" alt="AI Chat Application">
+                    </div>
+                    <div class="folder-info">
+                        <h1 class="folder-title">AI Chat Application</h1>
+                        <p class="folder-description">
+                            Real-time chat application with AI integration, featuring natural language processing, 
+                            voice recognition, and smart responses. Built with WebSocket technology and OpenAI API.
+                        </p>
+                        <a href="#" class="folder-button">View Project</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Project Indicators -->
+        <div class="project-indicators">
+            <div class="project-dot active" onclick="goToProject(0)"></div>
+            <div class="project-dot" onclick="goToProject(1)"></div>
+            <div class="project-dot" onclick="goToProject(2)"></div>
+            <div class="project-dot" onclick="goToProject(3)"></div>
+        </div>
+    </div>
     <!-- Bubbles container -->
     <div id="bubbles-container">
         <div id="bubble-layer-back" class="bubble-layer"></div>
@@ -135,7 +229,7 @@
     <!-- Rhomboids menu -->
     <div id="rhomboids-container">
         <!-- Home icon -->
-        <div class="rhomboid" style="top: 5%;">
+        <div class="rhomboid" style="top: 5%;" onclick="goToSection(1)">
             <div class="svg-icon-container">
                 <svg class="svg-icon" viewBox="2 0 20 18" xmlns="http://www.w3.org/2000/svg">
                     <path class="svg-path" id="home-outline-0" 
@@ -145,8 +239,8 @@
             </div>
         </div>
         
-        <!-- Projects icon -->
-        <div class="rhomboid" style="top: 15%;">
+        <!-- Projects -->
+        <div class="rhomboid" style="top: 15%;" onclick="goToSection(2)">
             <div class="svg-icon-container">
                 <svg class="svg-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path class="svg-path" id="left-rectangle" 
@@ -162,7 +256,7 @@
             </div>
         </div>
         
-        <!-- Portfolio icon -->
+        <!-- Stuff -->
         <div class="rhomboid" style="top: 25%;">
             <div class="svg-icon-container">
                 <svg class="svg-icon" viewBox="2 0 20 20" xmlns="http://www.w3.org/2000/svg">
