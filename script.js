@@ -1,11 +1,31 @@
 const name = "ADAM ZAHOR";
+// Variables for parallax effect
+let mouseX = 0;
+let mouseY = 0;
+let centerX = window.innerWidth / 2;
+let centerY = window.innerHeight / 2;
+let parallaxEnabled = false;
+let animationComplete = false;
+let rhythmGameActive = false;
+let rhythmAudio = null;
+let rhythmNotes = [];
+let rhythmActiveNotes = [];
+let rhythmScore = 0;
+let rhythmCombo = 0;
+let rhythmMaxCombo = 0;
+let rhythmHits = { perfect: 0, great: 0, good: 0, miss: 0, total: 0 };
+let rhythmFallSpeed = 200; // pixels per second
+let rhythmStartTime = 0;
+let rhythmAnimationFrame = null;
+let rhythmPressedKeys = { 'd': false, 'f': false, 'j': false, 'k': false };
+let rhythmHoldNotes = []; // Track active hold notes
+let rhythmHeldKeys = { 'd': false, 'f': false, 'j': false, 'k': false }; // Track currently held keys
 let activeCard = null;
 let cardsVisible = false;
 let cardsAnimating = false;
 let currentSection = 0; // 0 = intro, 1 = home, 2 = projects
 let isScrolling = false;
 let scrollTimeout;
-// Interface state variables
 let interfaceExpanded = false;
 let horizontalCardsVisible = false;
 
@@ -48,27 +68,6 @@ const triangleClasses = [
     "triangle-bottom-right"
 ];
 
-// Variables for parallax effect
-let mouseX = 0;
-let mouseY = 0;
-let centerX = window.innerWidth / 2;
-let centerY = window.innerHeight / 2;
-let parallaxEnabled = false;
-let animationComplete = false;
-let rhythmGameActive = false;
-let rhythmAudio = null;
-let rhythmNotes = [];
-let rhythmActiveNotes = [];
-let rhythmScore = 0;
-let rhythmCombo = 0;
-let rhythmMaxCombo = 0;
-let rhythmHits = { perfect: 0, great: 0, good: 0, miss: 0, total: 0 };
-let rhythmFallSpeed = 200; // pixels per second
-let rhythmStartTime = 0;
-let rhythmAnimationFrame = null;
-let rhythmPressedKeys = { 'd': false, 'f': false, 'j': false, 'k': false };
-let rhythmHoldNotes = []; // Track active hold notes
-let rhythmHeldKeys = { 'd': false, 'f': false, 'j': false, 'k': false }; // Track currently held keys
 
 
 // Song data for each card - maps to party/music/
@@ -396,7 +395,6 @@ function updateRhythmNotes(currentTime) {
             if (!noteArea) return;
             
             const laneHeight = noteArea.clientHeight;
-            const hitAreaHeight = 80;
             const playableHeight = laneHeight;
             
             if (note.isHold) {
@@ -1210,31 +1208,6 @@ function attachCardClickListeners() {
     }, 600);
 }
 
-// Add keyboard shortcuts for ESC to close
-document.addEventListener('keydown', function(event) {
-    // ESC to close rhythm game
-    if (event.key === 'Escape' && rhythmGameActive) {
-        event.preventDefault();
-        closeRhythmGame();
-        showHorizontalCards();
-    }
-    
-    // Space to pause/resume rhythm game
-    if (event.key === ' ' && rhythmGameActive && rhythmAudio) {
-        event.preventDefault();
-        if (rhythmAudio.paused) {
-            rhythmAudio.play();
-            rhythmStartTime = Date.now() - (rhythmAudio.currentTime * 1000);
-            startRhythmGameLoop();
-        } else {
-            rhythmAudio.pause();
-            if (rhythmAnimationFrame) {
-                cancelAnimationFrame(rhythmAnimationFrame);
-                rhythmAnimationFrame = null;
-            }
-        }
-    }
-});
 function addHitLinesToLanes() {
     const lanes = document.querySelectorAll('.rhythm-game-lane');
     
@@ -1733,8 +1706,12 @@ window.addEventListener('scroll', () => {
         newSection = 0; // Intro
     } else if (scrollTop < windowHeight * 1.5) {
         newSection = 1; // Home
-    } else {
+    } else if (scrollTop < windowHeight * 2.5){
         newSection = 2; // Projects
+    } else if (scrollTop < windowHeight * 3.5){
+        newSection = 3; // Gallery (Creations)
+    } else {
+        newSection = 4; // Contact
     }
     
     // Only update if section changed
@@ -2176,6 +2153,7 @@ function goToProject(index) {
     updateCornerImages();
 }
 
+
 function updateCornerImages() {
     const cornerImages = document.querySelectorAll('.corner-image');
     const imageUrls = [
@@ -2184,13 +2162,20 @@ function updateCornerImages() {
         `projects/sidepics/${currentProject * 4 + 3}.gif`,
         `projects/sidepics/${currentProject * 4 + 4}.gif`
     ];
-    
+        
     cornerImages.forEach((img, index) => {
         setTimeout(() => {
             img.classList.remove('animate');
             setTimeout(() => {
-                img.src = imageUrls[index];
-                img.classList.add('animate');
+                // Create a new image element to preload
+                const newImg = new Image();
+                
+                // Set up the load event handler before setting src
+                newImg.onload = function() {
+                    img.src = imageUrls[index];
+                    img.classList.add('animate');
+                };
+                newImg.src = imageUrls[index];
             }, 350);
         }, index * 80);
     });
@@ -2205,14 +2190,7 @@ function snapToSection() {
     const windowHeight = window.innerHeight;
     const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
     
-    let targetScroll;
-    if (currentSection === 0) {
-        targetScroll = 0;
-    } else if (currentSection === 1) {
-        targetScroll = windowHeight;
-    } else {
-        targetScroll = windowHeight * 2;
-    }
+    let targetScroll = windowHeight * currentSection;
     
     // Only snap if we're not already close to the target
     if (Math.abs(scrollTop - targetScroll) > 50) {
@@ -2224,165 +2202,234 @@ function snapToSection() {
 }
 
 function updateSectionDisplay() {
-    const animationContainer = document.getElementById('animation-container');
-    const taglineContainer = document.getElementById('tagline-container');
-    const contentContainer = document.querySelector('.content-container');
-    const circularImage = document.querySelector('.circular-image');
-    const contentBox = document.querySelector('.content-box');
-    const scrollIndicator = document.querySelector('.scroll-indicator');
-    const cards = document.querySelectorAll('.card');
-    const cardc = document.querySelector('.cards-container');
-    const projectsSection = document.querySelector('.projects-section');
-    
-    if (currentSection === 0) {
-        // Intro Section - Show name animation
-        animationContainer.style.transform = 'translate(-50%, -50%) scale(1)';
-        animationContainer.classList.remove('scrolled');
-        
-        taglineContainer.classList.remove('scrolled');
-        taglineContainer.style.opacity = '1';
-        
-        contentContainer.classList.remove('visible');
-        circularImage.classList.remove('scrolled');
-        contentBox.classList.remove('scrolled');
-        
-        projectsSection.classList.remove('visible');
-        projectsVisible = false;
-        
-        if (cardsVisible) {
-            cardsVisible = false;
-            cardc.classList.remove('visible');
-            cards.forEach((card, index) => {
-                setTimeout(() => {
-                    card.classList.remove('scrolled');
-                }, index * 50);
-            });
-        }
-        
-        scrollIndicator.style.opacity = '1';
-        
-    } else if (currentSection === 1) {
-        // Home Section - Show content box and cards
-        animationContainer.classList.add('scrolled');
-        animationContainer.style.transform = '';
-        
-        taglineContainer.classList.add('scrolled');
-        taglineContainer.style.opacity = '0';
-        
-        contentContainer.classList.add('visible');
-        circularImage.classList.add('scrolled');
-        contentBox.classList.add('scrolled');
-        
-        projectsSection.classList.remove('visible');
-        projectsVisible = false;
-        
-        if (!cardsVisible) {
-            cardsVisible = true;
-            cardc.classList.add('visible');
-            
-            if (!activeCard) {
-                initializeCards();
-            }
-            
-            cards.forEach((card, index) => {
-                setTimeout(() => {
-                    card.classList.add('scrolled');
-                }, index * 100);
-            });
-        }
-        // Unanimate the projects
-        const cornerImages = document.querySelectorAll('.corner-image');
-        cornerImages.forEach((img) => {
-                img.classList.remove('animate');
-        });
-        const navArrows = document.querySelectorAll('.project-nav');
-        navArrows.forEach((arrow) => {
-                arrow.classList.remove('animate');
-        });
-        const folderStack = document.querySelector('.folder-stack');
-        folderStack.classList.remove('animate');
+    // Cache DOM elements to avoid repeated queries
+    const elements = {
+        animationContainer: document.getElementById('animation-container'),
+        taglineContainer: document.getElementById('tagline-container'),
+        contentContainer: document.querySelector('.content-container'),
+        circularImage: document.querySelector('.circular-image'),
+        contentBox: document.querySelector('.content-box'),
+        scrollIndicator: document.querySelector('.scroll-indicator'),
+        cards: document.querySelectorAll('.card'),
+        cardsContainer: document.querySelector('.cards-container'),
+        projectsSection: document.querySelector('.projects-section'),
+        galleryContainer: document.querySelector('.gallery-container'),
+        galleryItems: document.querySelectorAll('.gallery-item'), 
+        sliderContainer: document.querySelector('.gallery-slider-container'), 
+        contactSection: document.getElementById('contact-section')
+    };
 
-        scrollIndicator.style.opacity = '0';
-        
-    } else if (currentSection === 2) {
-        // Projects Section
-        contentContainer.classList.remove('visible');
-        circularImage.classList.remove('scrolled');
-        contentBox.classList.remove('scrolled');
-        if (cardsVisible) {
-            cardsVisible = false;
-            cardc.classList.remove('visible');
-            cards.forEach((card, index) => {
-                setTimeout(() => {
-                    card.classList.remove('scrolled');
-                }, index * 50);
-            });
+    const sectionConfigs = {
+        0: { // Intro Section
+            animationContainer: { className: '', transform: 'translate(-50%, -50%) scale(1)' },
+            taglineContainer: { className: '', opacity: '1' },
+            contentContainer: { className: '' },
+            circularImage: { className: '' },
+            contentBox: { className: '' },
+            projectsSection: { className: '' },
+            galleryContainer: { className: '' }, // Make sure galleryContainer is targeted
+            scrollIndicator: { opacity: '1' },
+            cards: { action: 'hide' },
+            gallery: { action: 'hide' },
+            projects: { action: 'hide' },
+            contact: { action: 'hide' }
+        },
+        1: { // Home Section
+            animationContainer: { className: 'scrolled', transform: '' },
+            taglineContainer: { className: 'scrolled', opacity: '0' },
+            contentContainer: { className: 'visible' },
+            circularImage: { className: 'scrolled' },
+            contentBox: { className: 'scrolled' },
+            projectsSection: { className: '' },
+            galleryContainer: { className: '' },
+            scrollIndicator: { opacity: '0' },
+            cards: { action: 'show' },
+            gallery: { action: 'hide' },
+            projects: { action: 'hide' },
+            contact: { action: 'hide' }
+        },
+        2: { // Projects Section
+            animationContainer: { className: 'scrolled', transform: '' },
+            taglineContainer: { className: 'scrolled', opacity: '0' },
+            contentContainer: { className: '' },
+            circularImage: { className: '' },
+            contentBox: { className: '' },
+            projectsSection: { className: 'visible' },
+            galleryContainer: { className: '' },
+            scrollIndicator: { opacity: '0' },
+            cards: { action: 'hide' },
+            gallery: { action: 'hide' },
+            projects: { action: 'show' },
+            contact: { action: 'hide' }
+        },
+        3: { // Gallery Section
+            animationContainer: { className: 'scrolled', transform: '' },
+            taglineContainer: { className: 'scrolled', opacity: '0' },
+            contentContainer: { className: '' },
+            circularImage: { className: '' },
+            contentBox: { className: '' },
+            projectsSection: { className: '' },
+            galleryContainer: { className: 'visible' }, // Show gallery container
+            scrollIndicator: { opacity: '0' },
+            cards: { action: 'hide' },
+            gallery: { action: 'show' }, // This likely handles items within the gallery
+            projects: { action: 'hide' },
+            contact: { action: 'hide' }
+        },
+        4: { // Contact Section
+            animationContainer: { className: 'scrolled', transform: '' },
+            taglineContainer: { className: 'scrolled', opacity: '0' },
+            contentContainer: { className: '' },
+            circularImage: { className: '' },
+            contentBox: { className: '' },
+            projectsSection: { className: '' },
+            galleryContainer: { className: '' }, // Hide gallery container
+            scrollIndicator: { opacity: '0' },
+            cards: { action: 'hide' },
+            gallery: { action: 'hide' },
+            projects: { action: 'hide' },
+            contact: { action: 'show' }
         }
-        if (!projectsVisible) {
-            projectsVisible = true;
-            projectsSection.classList.add('visible');
-            // Animate folder stack
-            setTimeout(() => {
-                const folderStack = document.querySelector('.folder-stack');
-                folderStack.classList.add('animate');
-            }, 200);
-            // Animate corner images
-            setTimeout(() => {
-                const cornerImages = document.querySelectorAll('.corner-image');
-                cornerImages.forEach((img, index) => {
-                    setTimeout(() => {
-                        img.classList.add('animate');
-                    }, index * 100);
-                });
-            }, 400);
-            
-            // Animate navigation arrows
-            setTimeout(() => {
-                const navArrows = document.querySelectorAll('.project-nav');
-                navArrows.forEach((arrow, index) => {
-                    setTimeout(() => {
-                        arrow.classList.add('animate');
-                    }, index * 100);
-                });
-            }, 600);
-            
-        }
+    };
+
+    const config = sectionConfigs[currentSection];
+    if (!config) return;
+
+    // Apply basic element states
+    applyElementState(elements.animationContainer, config.animationContainer);
+    applyElementState(elements.taglineContainer, config.taglineContainer);
+    applyElementState(elements.contentContainer, config.contentContainer);
+    applyElementState(elements.circularImage, config.circularImage);
+    applyElementState(elements.contentBox, config.contentBox);
+    applyElementState(elements.projectsSection, config.projectsSection);
+    applyElementState(elements.scrollIndicator, config.scrollIndicator);
+
+    // Handle complex animations
+    handleCardsAnimation(elements, config.cards.action);
+    handleProjectsAnimation(config.projects.action);
+    handleGalleryAnimation(elements, config.gallery.action);
+    handleContactAnimation(elements, config.contact?.action);
+    // Update global state
+    projectsVisible = config.projects.action === 'show';
+}
+
+// Helper function to apply element states
+function applyElementState(element, state) {
+    if (!element || !state) return;
+    
+    if (state.className !== undefined) {
+        element.className = element.className.replace(/scrolled|visible/g, '').trim();
+        if (state.className) element.classList.add(state.className);
+    }
+    
+    if (state.transform !== undefined) {
+        element.style.transform = state.transform;
+    }
+    
+    if (state.opacity !== undefined) {
+        element.style.opacity = state.opacity;
     }
 }
 
+// Handle cards animation logic
+function handleCardsAnimation(elements, action) {
+    if (action === 'show' && !cardsVisible) {
+        cardsVisible = true;
+        elements.cardsContainer.classList.add('visible');
+        
+        if (!activeCard) {
+            initializeCards();
+        }
+        
+        elements.cards.forEach((card, index) => {
+            setTimeout(() => {
+                card.classList.add('scrolled');
+            }, index * 100);
+        });
+    } else if (action === 'hide' && cardsVisible) {
+        cardsVisible = false;
+        elements.cards.forEach((card, index) => {
+            setTimeout(() => {
+                card.classList.remove('scrolled');
+            }, index * 50);
+        });
+
+    }
+}
+
+// Handle projects animation logic
+function handleProjectsAnimation(action) {
+    const cornerImages = document.querySelectorAll('.corner-image');
+    const navArrows = document.querySelectorAll('.project-nav');
+    const folderStack = document.querySelector('.folder-stack');
+
+    if (action === 'show' && !projectsVisible) {
+        // Animate folder stack
+        setTimeout(() => folderStack.classList.add('animate'), 200);
+        
+        // Animate corner images
+        setTimeout(() => {
+            cornerImages.forEach((img, index) => {
+                setTimeout(() => img.classList.add('animate'), index * 100);
+            });
+        }, 400);
+        
+        // Animate navigation arrows
+        setTimeout(() => {
+            navArrows.forEach((arrow, index) => {
+                setTimeout(() => arrow.classList.add('animate'), index * 100);
+            });
+        }, 600);
+    } else if (action === 'hide') {
+        // Remove animations
+        cornerImages.forEach(img => img.classList.remove('animate'));
+        navArrows.forEach(arrow => arrow.classList.remove('animate'));
+        folderStack.classList.remove('animate');
+    }
+}
+
+// Handle gallery animation logic
+function handleGalleryAnimation(elements, action) {
+
+    if (action === 'show' && !elements.galleryContainer.classList.contains('visible')) {
+        elements.galleryContainer.classList.add('visible');
+        // Animate gallery items with staggered timing
+        setTimeout(() => {
+            elements.galleryItems.forEach((item, index) => {
+                setTimeout(() => {
+                    item.classList.add('animate');
+                }, index * 100);
+            });
+        }, 200);
+        
+        // Animate slider last
+        setTimeout(() => {
+            elements.sliderContainer.classList.add('animate');
+        }, 800);
+    } else if (action === 'hide' && elements.galleryContainer.classList.contains('visible')) {
+        elements.galleryContainer.classList.remove('visible');
+        elements.galleryItems.forEach(item => item.classList.remove('animate'));
+        elements.sliderContainer.classList.remove('animate');
+    }
+}
+function handleContactAnimation(elements, action) {
+    if (!elements.contactSection) return; // Guard clause
+
+    if (action === 'show' && !elements.contactSection.classList.contains('visible')) {
+        elements.contactSection.classList.add('visible');
+    } else if (action === 'hide' && elements.contactSection.classList.contains('visible')) {
+        elements.contactSection.classList.remove('visible');
+    }
+}
 function goToSection(section) {
     const windowHeight = window.innerHeight;
-    let targetScroll;
-    
-    if (section === 0) {
-        targetScroll = 0;
-    } else if (section === 1) {
-        targetScroll = windowHeight;
-    } else if (section === 2) {
-        targetScroll = windowHeight * 2;
-    }
-    
+    let targetScroll = windowHeight * section;
     window.scrollTo({
         top: targetScroll,
         behavior: 'smooth'
     });
 }
-// Add keyboard navigation for sections
-document.addEventListener('keydown', (e) => {
-    if (!animationComplete) return;
-    
-    if (e.key === 'ArrowDown' || e.key === 'PageDown') {
-        e.preventDefault();
-        if (currentSection < 2) {
-            goToSection(currentSection + 1);
-        }
-    } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
-        e.preventDefault();
-        if (currentSection > 0) {
-            goToSection(currentSection - 1);
-        }
-    }
-});
+
 // Add click event to circular image
 document.addEventListener('DOMContentLoaded', function() {
     const circularImage = document.querySelector('.circular-image');
@@ -2399,6 +2446,288 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Return button not found during initialization');
     }
 });
+document.addEventListener('DOMContentLoaded', () => {
+    // --- Configuration ---
+    const imagesData = [
+        { src: 'creations/barn.png', title: 'Little Countryside', date: '2025-02-29' },
+        { src: 'creations/metro.png', title: 'A metro station', date: '2025-04-30' },
+        { src: 'creations/panel.png', title: 'Colorful building', date: '2025-05-16' },
+        { src: 'creations/central.png', title: 'The Central', date: '2025-04-21' },
+        { src: 'creations/grove.png', title: 'Grove', date: '2023-06-29' },
+        { src: 'creations/dock.png', title: 'Nelvenian docks', date: '2023-04-17' },
+        { src: 'creations/street.png', title: 'SF type street', date: '2023-04-08' },
+        { src: 'creations/gym.png', title: 'Pokemon Gym', date: '2023-03-12' },
+        { src: 'creations/boat.png', title: 'Ship of the new world', date: '2023-01-29' },
+        { src: 'creations/home.png', title: 'Home', date: '2022-12-09' },
+        { src: 'creations/ship.png', title: 'The first boat', date: '2022-12-09' }
+    ];
 
+    const itemBaseWidthVW = 60;
+    const itemGapVW = 5;
+
+    // --- DOM Elements ---
+    const galleryTrack = document.querySelector('.gallery-track');
+    const slider = document.getElementById('gallery-slider');
+    const galleryViewport = document.querySelector('.gallery-viewport');
+
+    // --- State ---
+    let isSliderDragging = false;
+    let rafId = null;
+
+    // --- Functions ---
+    function initializeGallery() {
+        galleryTrack.innerHTML = '';
+
+        imagesData.forEach((imgData, index) => {
+            const item = document.createElement('div');
+            item.classList.add('gallery-item');
+            item.dataset.index = index;
+
+            const imgElement = document.createElement('img');
+            imgElement.src = imgData.src;
+            imgElement.alt = imgData.title;
+            if (index < 3) imgElement.loading = 'eager'; else imgElement.loading = 'lazy';
+
+            const titleDiv = document.createElement('div');
+            titleDiv.classList.add('image-title');
+            titleDiv.textContent = imgData.title;
+
+            const dateDiv = document.createElement('div');
+            dateDiv.classList.add('image-date');
+            dateDiv.textContent = imgData.date;
+
+            item.appendChild(imgElement);
+            item.appendChild(titleDiv);
+            item.appendChild(dateDiv);
+            galleryTrack.appendChild(item);
+
+            item.addEventListener('click', function() {
+                const clickedIndex = parseInt(this.dataset.index);
+                if (Math.abs(parseFloat(slider.value) - clickedIndex) > 0.001) {
+                    galleryTrack.style.transition = 'transform 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+                    slider.value = clickedIndex;
+                    updateGalleryView(true);
+                }
+            });
+        });
+
+        if (imagesData.length > 0) {
+            slider.min = 0;
+            slider.max = imagesData.length > 1 ? imagesData.length - 1 : 0;
+            slider.value = 0;
+            slider.step = 0.01;
+        } else {
+            slider.disabled = true;
+        }
+
+        galleryTrack.style.transition = 'none';
+        updateGalleryView(false);
+    }
+
+    function updateGalleryView(enableItemTransitions = false) {
+        if (rafId) cancelAnimationFrame(rafId);
+
+        rafId = requestAnimationFrame(() => {
+            const galleryItems = galleryTrack.querySelectorAll('.gallery-item');
+            if (galleryItems.length === 0) return;
+
+            const targetCenterIndex = parseFloat(slider.value);
+            const viewportWidthPx = galleryViewport.offsetWidth;
+            const itemWidthPx = (itemBaseWidthVW / 100) * window.innerWidth;
+            const itemGapPx = (itemGapVW / 100) * window.innerWidth;
+            const trackTranslateX = (viewportWidthPx / 2) - (targetCenterIndex * (itemWidthPx + itemGapPx) + (itemWidthPx / 2));
+
+            if (!isSliderDragging && galleryTrack.style.transition !== 'none') {
+                galleryTrack.style.transform = `translateX(${trackTranslateX}px)`;
+            } else {
+                galleryTrack.style.transition = 'none';
+                galleryTrack.style.transform = `translateX(${trackTranslateX}px)`;
+            }
+
+            galleryItems.forEach((item, index) => {
+                const distance = index - targetCenterIndex;
+                let scale = 1, blur = 0, itemOpacity = 1;
+                let zIndex = imagesData.length - Math.abs(Math.round(distance));
+                let currentItemTransform = 'translateY(-50%)';
+
+                if (enableItemTransitions) {
+                    item.style.transition = 'transform 0.5s ease-out, filter 0.5s ease-out, opacity 0.5s ease-out';
+                } else {
+                    item.style.transition = 'none';
+                }
+
+                if (Math.abs(distance) < 0.5) {
+                    scale = 1.0;
+                    blur = 0;
+                    itemOpacity = 1;
+                    item.classList.add('active');
+                } else {
+                    const factor = Math.abs(distance);
+                    scale = Math.max(0.55, 1 - factor * 0.25);
+                    blur = Math.min(6, factor * 3.5);
+                    itemOpacity = Math.max(0.45, 1 - factor * 0.3);
+                    item.classList.remove('active');
+                }
+
+                currentItemTransform += ` scale(${scale})`;
+                item.style.transform = currentItemTransform;
+                item.style.filter = `blur(${blur}px)`;
+                item.style.opacity = itemOpacity;
+                item.style.zIndex = zIndex;
+            });
+        });
+    }
+    document.addEventListener('keydown', (e) => {
+    if (!animationComplete) return;
+
+    // --- Rhythm Game specific key handling (should be at the top if it needs to override other behaviors) ---
+    if (rhythmGameActive) {
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            closeRhythmGame();
+            showHorizontalCards();
+            return; // Exit early as the event is handled
+        }
+        if (e.key === ' ' && rhythmAudio) {
+            e.preventDefault();
+            if (rhythmAudio.paused) {
+                rhythmAudio.play();
+                rhythmStartTime = Date.now() - (rhythmAudio.currentTime * 1000);
+                startRhythmGameLoop();
+            } else {
+                rhythmAudio.pause();
+                if (rhythmAnimationFrame) {
+                    cancelAnimationFrame(rhythmAnimationFrame);
+                    rhythmAnimationFrame = null;
+                }
+            }
+            return; // Exit early
+        }
+        // Note: Rhythm game's d,f,j,k keys are handled by handleRhythmKeyDown/Up
+        // If those are not stopping propagation or preventing default,
+        // and you don't want arrow keys to do anything else during rhythm game, add checks here.
+    }
+
+    let eventHandledInSection = false;
+
+    // --- Section-specific Left/Right Arrow Key Handling ---
+    if (currentSection === 2) { // Projects Section
+        if (e.key === 'ArrowLeft') {
+            previousProject();
+            eventHandledInSection = true;
+        } else if (e.key === 'ArrowRight') {
+            nextProject();
+            eventHandledInSection = true;
+        }
+    } else if (currentSection === 3) { // Gallery Section
+        const slider = document.getElementById('gallery-slider');
+        const galleryTrack = document.querySelector('.gallery-track'); // Ensure galleryTrack is accessible
+
+        if (slider && galleryTrack) { // Make sure elements are found
+            let currentValue = parseFloat(slider.value);
+            const maxSliderValue = parseFloat(slider.max);
+            let targetValue = Math.round(currentValue); // Start with the current rounded value
+
+            if (e.key === 'ArrowLeft') {
+                targetValue -= 1; // Aim for the previous integer index
+                if (targetValue >= 0) {
+                    // Apply transition for smooth track movement, similar to handleSliderSnap
+                    galleryTrack.style.transition = 'transform 0.3s ease-out';
+                    slider.value = targetValue;
+                    updateGalleryView(false); // Update view with item animations
+                }
+                eventHandledInSection = true;
+            } else if (e.key === 'ArrowRight') {
+                targetValue += 1; // Aim for the next integer index
+                if (targetValue <= maxSliderValue) {
+                    galleryTrack.style.transition = 'transform 0.3s ease-out';
+                    slider.value = targetValue;
+                    updateGalleryView(true);
+                }
+                eventHandledInSection = true;
+            }
+        }
+    }
+
+    if (eventHandledInSection) {
+        e.preventDefault(); // Prevent default browser scroll if left/right arrows were used within a section
+        return; // Event handled, no further processing for section navigation
+    }
+
+    // --- Default Section Navigation (Up/Down Arrows) ---
+    // This part will only be reached if left/right arrows were not handled by a specific section
+    if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+        e.preventDefault();
+        if (currentSection > 0) {
+            goToSection(currentSection - 1);
+        }
+    } else if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+        e.preventDefault();
+        // Assuming 4 is the last section index (0-Intro, 1-Home, 2-Projects, 3-Gallery, 4-Contact)
+        if (currentSection < 4) {
+            goToSection(currentSection + 1);
+        }
+    }
+});
+    // --- Slider Snap Logic ---
+    function handleSliderSnap() {
+        const currentValue = parseFloat(slider.value);
+        const nearestIndex = Math.round(currentValue);
+
+        // Only snap if significantly off-integer
+        if (Math.abs(currentValue - nearestIndex) > 0.01) {
+            galleryTrack.style.transition = 'transform 0.3s ease-out'; // Snap animation for track
+            slider.value = nearestIndex; // Set slider to the target
+            updateGalleryView(true);     // Animate track and items to the snapped position
+        } else {
+            // If already very close, ensure it's set to the exact integer
+            // and update view without new item animations (respecting ongoing track animation if any)
+            if (slider.value != nearestIndex) { // Ensure it's exactly the integer
+                 slider.value = nearestIndex;
+            }
+            updateGalleryView(galleryTrack.style.transition !== 'none');
+        }
+    }
+
+    // --- Event Listeners ---
+    slider.addEventListener('mousedown', () => {
+        isSliderDragging = true;
+        galleryTrack.style.transition = 'none';
+    });
+
+    slider.addEventListener('touchstart', () => {
+        isSliderDragging = true;
+        galleryTrack.style.transition = 'none';
+    }, { passive: true });
+
+
+    document.addEventListener('mouseup', () => {
+        if (isSliderDragging) {
+            isSliderDragging = false;
+            handleSliderSnap(); // Call snap logic when slider is released
+        }
+    });
+
+    document.addEventListener('touchend', () => {
+        if (isSliderDragging) {
+            isSliderDragging = false;
+            handleSliderSnap(); // Call snap logic for touch devices
+        }
+    }, { passive: true });
+
+    slider.addEventListener('input', () => {
+        if (isSliderDragging) {
+            updateGalleryView(false); // Item transitions off for drag responsiveness
+        }
+    });
+
+    window.addEventListener('resize', () => {
+        galleryTrack.style.transition = 'none';
+        updateGalleryView(false);
+    });
+
+    // --- Initialize ---
+    initializeGallery();
+});
 // Start the animation
 setTimeout(animateLetters, 1000);
