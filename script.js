@@ -1,11 +1,12 @@
-const name = "ADAM ZAHOR";
-// Variables for parallax effect
+const name = "ADAM ZAHOR"; // Change me!
+// Parallax
 let mouseX = 0;
 let mouseY = 0;
 let centerX = window.innerWidth / 2;
 let centerY = window.innerHeight / 2;
 let parallaxEnabled = false;
 let animationComplete = false;
+// Rhythm
 let rhythmGameActive = false;
 let rhythmAudio = null;
 let rhythmNotes = [];
@@ -14,29 +15,35 @@ let rhythmScore = 0;
 let rhythmCombo = 0;
 let rhythmMaxCombo = 0;
 let rhythmHits = { perfect: 0, great: 0, good: 0, miss: 0, total: 0 };
-let rhythmFallSpeed = 200; // pixels per second
+let rhythmFallSpeed = 200;
 let rhythmStartTime = 0;
 let rhythmAnimationFrame = null;
 let rhythmPressedKeys = { 'd': false, 'f': false, 'j': false, 'k': false };
 let rhythmHoldNotes = []; // Track active hold notes
 let rhythmHeldKeys = { 'd': false, 'f': false, 'j': false, 'k': false }; // Track currently held keys
+// Cards
 let activeCard = null;
 let cardsVisible = false;
 let cardsAnimating = false;
-let currentSection = 0; // 0 = intro, 1 = home, 2 = projects
+// Scrolling
+let currentSection = 0; // 0 = intro, 1 = home, 2 = projects, 3 = creations, 4 = contact, 5 = void
 let isScrolling = false;
 let scrollTimeout;
 let interfaceExpanded = false;
 let horizontalCardsVisible = false;
 
+let projectsVisible = false;
+let currentProject = 0;
+const totalProjects = 4;
+
 // Letter definitions using triangle types (0: none, 1: top-left, 2: top-right, 3: bottom-left, 4: bottom-right)
 const letterDefinitions = {
     'A': [4, 3, 1, 2, 1, 2],
     'B': [1, 3, 1, 3, 3, 1],
-    'C': [1, 2, 1, 0, 3, 4],
+    'C': [0, 0, 1, 0, 3, 4],
     'D': [0, 0, 2, 2, 4, 4],
-    'E': [1, 2, 1, 0, 3, 0],
-    'F': [1, 2, 1, 0, 0, 0],
+    'E': [1, 2, 1, 0, 3, 4],
+    'F': [1, 1, 3, 0, 1, 0],
     'G': [1, 2, 1, 0, 3, 2],
     'H': [3, 4, 3, 4, 1, 2],
     'I': [1, 0, 3, 0, 1, 0],
@@ -44,18 +51,18 @@ const letterDefinitions = {
     'K': [1, 4, 3, 1, 1, 3],
     'L': [1, 0, 0, 0, 3, 4],
     'M': [3, 4, 2, 1, 3, 4],
-    'N': [1, 0, 2, 1, 0, 1],
+    'N': [3, 4, 2, 3, 3, 2],
     'O': [4, 3, 1, 4, 2, 1],
-    'P': [1, 2, 1, 2, 0, 0],
-    'Q': [1, 2, 1, 0, 3, 2],
+    'P': [1, 2, 3, 4, 1, 0],
+    'Q': [4, 3, 1, 4, 2, 2],
     'R': [1, 3, 3, 1, 1, 3],
     'S': [4, 3, 2, 3, 2, 1],
-    'T': [1, 1, 0, 0, 0, 0],
-    'U': [1, 0, 1, 0, 3, 4],
-    'V': [1, 0, 1, 0, 0, 4],
-    'W': [1, 0, 1, 1, 0, 1],
-    'X': [1, 2, 3, 4, 0, 0],
-    'Y': [1, 2, 0, 0, 0, 0],
+    'T': [1, 1, 0, 1, 4, 0],
+    'U': [0, 0, 3, 4, 3, 4],
+    'V': [0, 0, 3, 4, 2, 1],
+    'W': [3, 4, 3, 4, 2, 1],
+    'X': [0, 0, 3, 4, 1, 2],
+    'Y': [3, 4, 2, 1, 4, 0],
     'Z': [1, 1, 4, 1, 4, 4]
 };
 
@@ -99,7 +106,6 @@ const cardSongs = {
     }
 };
 
-// Create additional styles for rhythm game animations
 function createRhythmGameElements() {
     // Check if elements already exist
     if (document.getElementById('rhythmLaneContainer')) return;
@@ -248,17 +254,11 @@ async function startRhythmGame(cardId) {
         // Update UI
         document.getElementById('rhythmSongTitle').textContent = songData.title;
         updateRhythmScoreDisplay();
-        
-        // Wait for audio to load
         await new Promise((resolve, reject) => {
             rhythmAudio.addEventListener('loadeddata', resolve);
             rhythmAudio.addEventListener('error', reject);
         });
-        
-        // Remove loading indicator
         loadingDiv.remove();
-        
-        // Slide in game elements
         slideInRhythmGame();
         
         // Start countdown after slide-in
@@ -315,7 +315,7 @@ function closeRhythmGame() {
 function resetRhythmGame() {
     rhythmGameActive = false;
     rhythmActiveNotes = [];
-    rhythmHoldNotes = []; // Clear hold notes
+    rhythmHoldNotes = [];
     rhythmScore = 0;
     rhythmCombo = 0;
     rhythmMaxCombo = 0;
@@ -398,9 +398,7 @@ function updateRhythmNotes(currentTime) {
             const playableHeight = laneHeight;
             
             if (note.isHold) {
-                // For hold notes, we need to handle positioning differently based on state
                 if (!note.holdStarted) {
-                    // Before hit: position based on head timing
                     const timeDiff = note.time - currentTime;
                     let progress = 1 - (timeDiff / spawnWindow);
                     progress = Math.max(0, Math.min(1, progress));
@@ -408,7 +406,7 @@ function updateRhythmNotes(currentTime) {
                     const topPosition = progress * playableHeight;
                     let topPercentage = (topPosition / laneHeight) * 100;
                     
-                    // Adjust position so HEAD reaches hit line at correct time
+                    // Adjust position so HEAD reaches the hit line at the correct god forsaken time 
                     const holdHeight = parseFloat(note.element.style.height) || 100;
                     const holdHeightPercentage = (holdHeight / laneHeight) * 100;
                     const adjustedTopPercentage = topPercentage - holdHeightPercentage;
@@ -455,16 +453,13 @@ function updateRhythmNotes(currentTime) {
         }
     });
     
-    // Handle hold notes - process active holds separately
     updateHoldNotes(currentTime);
     
     // Remove notes that are far past
     const notesToRemove = rhythmActiveNotes.filter(note => {
         if (note.isHold) {
-            // Remove hold notes that are completed and no longer holding
             return (note.hit || note.missed) && !note.holding;
         } else {
-            // Remove regular notes that are far past
             return note.time < currentTime - 500;
         }
     });
@@ -508,13 +503,12 @@ function updateHoldNotes(currentTime) {
             note.holdReleased = true;
             note.hit = true;
             
-            // Give points for completing the hold
-            let bonusPoints = 50; // Base points for completing hold
+            let bonusPoints = 50;
             
             rhythmScore += bonusPoints;
             rhythmCombo++;
             rhythmMaxCombo = Math.max(rhythmMaxCombo, rhythmCombo);
-            rhythmHits.perfect++; // Count as perfect when held properly
+            rhythmHits.perfect++;
             
             // Visual feedback for successful hold completion
             if (note.element) {
@@ -534,18 +528,15 @@ function updateHoldNotes(currentTime) {
         }
         // If player is still holding after a grace period, consider the hold finished
         else if (endTimeDiff < -350 && note.holding) {
-            // Player held too long - but still complete it successfully
             note.holding = false;
             note.holdReleased = true;
             note.hit = true;
-            
-            // Give reduced points
+
             let bonusPoints = 30;
             
             rhythmScore += bonusPoints;
             rhythmCombo++;
             
-            // Visual feedback
             if (note.element) {
                 note.element.classList.add('hold-completed');
                 setTimeout(() => {
@@ -600,7 +591,6 @@ function spawnRhythmNote(note) {
         // Calculate how long the hold note should be in pixels
         const holdLengthInPixels = (note.duration / spawnWindow) * playableHeight;
         
-        // CORRECTED: Create hold note structure: END at top, TAIL in middle, HEAD at bottom
         noteElement.innerHTML = `
             <div class="rhythm-hold-end"></div>
             <div class="rhythm-hold-tail" style="height: ${holdLengthInPixels}px;"></div>
@@ -624,7 +614,6 @@ function spawnRhythmNote(note) {
         note.isHold = false;
     }
     
-    // Start off-screen at the top (0%)
     noteElement.style.top = '0%';
     noteArea.appendChild(noteElement);
     note.element = noteElement;
@@ -649,10 +638,10 @@ function checkRhythmNoteHit(key) {
     const closestNote = notesInLane[0];
     const timeDiff = Math.abs(closestNote.time - currentTime);
     
-    // Wider hit window (350ms) for better playability
+    // Wider hit window (350ms) for better playability - may change
     if (timeDiff <= 350) {
         console.log(`Hit note with accuracy: ${timeDiff}ms`);
-        rhythmNoteHit(closestNote, timeDiff);  // This calls rhythmNoteHit
+        rhythmNoteHit(closestNote, timeDiff);
     }
 }
 // Enhanced keyboard handling with ripple effects
@@ -673,7 +662,7 @@ function handleRhythmKeyDown(event) {
     if (hitArea) {
         hitArea.classList.add('active');
         
-        // Add ripple effect
+        // Add ripple effect but without classes because I dont feel like it
         const ripple = document.createElement('div');
         ripple.style.position = 'absolute';
         ripple.style.width = '20px';
@@ -696,71 +685,6 @@ function handleRhythmKeyDown(event) {
     // Check for note hit (both regular and hold notes)
     checkRhythmNoteHit(key);
 }
-function rhythmNoteHit(note, accuracy) {
-    if (note.hit || note.missed) return;
-    
-    if (note.isHold) {
-        // Handle hold note start
-        if (!note.holdStarted) {
-            note.holdStarted = true;
-            note.holding = true;
-            rhythmHoldNotes.push(note);
-            
-            // Visual feedback for hold start
-            if (note.element) {
-                note.element.classList.add('hold-active');
-                const holdHead = note.element.querySelector('.rhythm-hold-head');
-                if (holdHead) holdHead.classList.add('hit');
-            }
-            
-            // Give points for starting the hold
-            let judgment = getJudgmentFromAccuracy(accuracy);
-            let points = getPointsFromJudgment(judgment);
-            
-            rhythmCombo++;
-            rhythmMaxCombo = Math.max(rhythmMaxCombo, rhythmCombo);
-            rhythmScore += points;
-            rhythmHits.total++;
-            rhythmHits[judgment.toLowerCase()]++;
-            
-            updateRhythmScoreDisplay();
-            showRhythmJudgment(note.lane, judgment);
-            
-            // Add screen shake for bad hits
-            if (judgment === 'BAD') {
-                addScreenShake();
-            }
-        }
-    } else {
-        // Handle regular note (same as before)
-        note.hit = true;
-        
-        let judgment = getJudgmentFromAccuracy(accuracy);
-        let points = getPointsFromJudgment(judgment);
-        
-        rhythmCombo++;
-        rhythmMaxCombo = Math.max(rhythmMaxCombo, rhythmCombo);
-        rhythmScore += points;
-        rhythmHits.total++;
-        rhythmHits[judgment.toLowerCase()]++;
-        
-        updateRhythmScoreDisplay();
-        showRhythmJudgment(note.lane, judgment);
-        
-        if (judgment === 'BAD') {
-            addScreenShake();
-        }
-        
-        if (note.element) {
-            note.element.classList.add('hit');
-            setTimeout(() => {
-                if (note.element && note.element.parentNode) {
-                    note.element.remove();
-                }
-            }, 100);
-        }
-    }
-}
 function handleRhythmKeyUp(event) {
     if (!rhythmGameActive) return;
     
@@ -774,7 +698,6 @@ function handleRhythmKeyUp(event) {
     const hitArea = document.querySelector(`.rhythm-hit-area-${key}`);
     if (hitArea) hitArea.classList.remove('active');
     
-    // Handle hold note release
     handleHoldNoteRelease(key);
 }
 function handleHoldNoteRelease(key) {
@@ -832,7 +755,6 @@ function handleHoldNoteRelease(key) {
         } 
         // Released too early
         else if (endTimeDiff > 200) {
-            // Released too early
             note.holdReleased = true;
             note.holding = false;
             note.missed = true;
@@ -851,14 +773,12 @@ function handleHoldNoteRelease(key) {
             
             showRhythmJudgment(note.lane, 'EARLY RELEASE');
         }
-        // Released too late (shouldn't happen often due to auto-completion logic)
+        // Released too late (doesn't happen but who cares better have it than not)
         else if (endTimeDiff < -200) {
-            // Released too late
             note.holdReleased = true;
             note.holding = false;
-            note.hit = true; // Still count as hit but with reduced score
+            note.hit = true;
             
-            // Reduced points for late release
             rhythmScore += 30;
             rhythmCombo++;
             
@@ -911,11 +831,6 @@ function rhythmNoteHit(note, accuracy) {
             
             updateRhythmScoreDisplay();
             showRhythmJudgment(note.lane, judgment);
-            
-            // Add screen shake for perfect hold starts
-            if (judgment === 'MISS') {
-                addScreenShake();
-            }
         }
     } else {
         // Handle regular note
@@ -933,10 +848,6 @@ function rhythmNoteHit(note, accuracy) {
         updateRhythmScoreDisplay();
         showRhythmJudgment(note.lane, judgment);
         
-        if (judgment === 'MISS') {
-            addScreenShake();
-        }
-        
         if (note.element) {
             note.element.classList.add('hit');
             setTimeout(() => {
@@ -947,21 +858,12 @@ function rhythmNoteHit(note, accuracy) {
         }
     }
 }
-function addScreenShake() {
-    const laneContainer = document.getElementById('rhythmLaneContainer');
-    if (laneContainer) {
-        laneContainer.style.animation = 'screenShake 0.2s ease-out';
-        setTimeout(() => {
-            laneContainer.style.animation = '';
-        }, 200);
-    }
-}
 // Helper function to get judgment from accuracy
 function getJudgmentFromAccuracy(accuracy) {
     if (accuracy <= 50) return 'PERFECT';
     if (accuracy <= 120) return 'GREAT';
     if (accuracy <= 200) return 'GOOD';
-    return 'BAD';
+    return 'BAD'; // You better not get these too often you hear
 }
 
 // Helper function to get points from judgment
@@ -1029,6 +931,7 @@ function showRhythmJudgment(lane, judgment) {
 function createJudgmentParticles(hitAreaRect) {
     const particles = 8;
     for (let i = 0; i < particles; i++) {
+        // Classes? never heard of em
         const particle = document.createElement('div');
         particle.style.position = 'fixed';
         particle.style.width = '4px';
@@ -1105,11 +1008,10 @@ function updateRhythmScoreDisplay() {
     }
 }
 
-// Enhanced end game with slide-in results
 function endRhythmGame() {
     rhythmGameActive = false;
     
-    // Calculate final stats
+    // Calculate final stats yippie
     const finalScore = {
         score: rhythmScore,
         maxCombo: rhythmMaxCombo,
@@ -1171,10 +1073,8 @@ function startGameCountdown() {
     });
 }
 
-// Updated handleImageClick to create rhythm game elements
 const originalHandleImageClick = window.handleImageClick;
 window.handleImageClick = function() {
-    // Call the original function
     if (originalHandleImageClick) {
         originalHandleImageClick.call(this);
     }
@@ -1198,7 +1098,6 @@ function attachCardClickListeners() {
             
             // Add new click listener with enhanced feedback
             newCard.addEventListener('click', (e) => {
-                // Add click animation
                 newCard.style.transform = 'scale(0.95)';
                 hideHorizontalCards();
                 // Start rhythm game
@@ -1292,10 +1191,9 @@ function updateParallax(e) {
     mouseX = e.clientX;
     mouseY = e.clientY;
     
-    const normalizedX = (mouseX - centerX) / centerX; // -1 to 1
-    const normalizedY = (mouseY - centerY) / centerY; // -1 to 1
+    const normalizedX = (mouseX - centerX) / centerX; 
+    const normalizedY = (mouseY - centerY) / centerY; 
     
-    // Apply different movement speeds to each layer
     const frontLayer = document.getElementById('bubble-layer-front');
     const middleLayer = document.getElementById('bubble-layer-middle');
     const backLayer = document.getElementById('bubble-layer-back');
@@ -1326,9 +1224,8 @@ document.addEventListener('touchmove', (e) => {
     const deltaY = Math.abs(startY - window.touchStartY);
     const deltaX = Math.abs(touch.clientX - (window.touchStartX || touch.clientX));
     
-    // If it's primarily a vertical movement (scrolling), don't prevent default
     if (deltaY > deltaX && deltaY > 10) {
-        // This is a scroll gesture, allow it
+        // This is a scroll gesture, I'll allow it
         return;
     }
     
@@ -1362,12 +1259,12 @@ function animateLetters() {
     for (let row = 0; row < 3; row++) {
         // Go through each letter, collecting left then right triangles
         for (let letterIndex = 0; letterIndex < letters.length; letterIndex++) {
-            // First get the left triangle (col=0)
+            // First get the left 
             const leftCellIndex = row * 2 + 0;
             const leftTriangle = letters[letterIndex].querySelector(`.triangle[data-index="${leftCellIndex}"]`);
             if (leftTriangle) allTriangles.push(leftTriangle);
             
-            // Then get the right triangle (col=1)
+            // Then get the right
             const rightCellIndex = row * 2 + 1;
             const rightTriangle = letters[letterIndex].querySelector(`.triangle[data-index="${rightCellIndex}"]`);
             if (rightTriangle) allTriangles.push(rightTriangle);
@@ -1378,19 +1275,16 @@ function animateLetters() {
     const rotationSteps = ['rotate-0', 'rotate-90', 'rotate-180', 'rotate-270', 'rotate-0', 'rotate-90', 'rotate-180', 'rotate-270', 'rotate-360'];
     
     // Get total animation time to know when to start the tagline
-    const lastTriangleVisibleTime = (allTriangles.length - 1) * 30; // Time until last triangle appears
+    const lastTriangleVisibleTime = (allTriangles.length - 1) * 30
     
-    // Start all triangles with a staggered delay
     allTriangles.forEach((triangle, index) => {
         setTimeout(() => {
-            // Make triangle visible immediately
             triangle.classList.add('visible');
             
             // Rotate through all positions
             let rotationIndex = 0;
             
             function rotateTriangle() {
-                // Clear previous rotation classes
                 triangle.classList.remove('rotate-0', 'rotate-90', 'rotate-180', 'rotate-270', 'rotate-360');
                 
                 // Apply current rotation
@@ -1407,7 +1301,7 @@ function animateLetters() {
             // Start rotation sequence
             rotateTriangle();
             
-        }, index * 30); // Staggered delay between triangles
+        }, index * 30);
     });
     
     // After last triangle is visible, start the tagline animation with a small delay
@@ -1431,11 +1325,8 @@ function animateTagline() {
     
     const charSlots = document.querySelectorAll('.char-slot');
     
-    // Random character set
-    const randomChars = '!@#$%^&*()_+-=[]{}|;:,./<>?`~ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    
-    // Calculate when tagline animation will finish
-    const taglineFinishTime = (tagline.length - 1) * 100 + (12 * 50);
+    // Random character set and a silly
+    const randomChars = '!@#$%^&*()_+-=[]{}|;:,./<>?`~𒀱ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     
     // Animate each character slot with random characters
     charSlots.forEach((slot, index) => {
@@ -1451,26 +1342,19 @@ function animateTagline() {
                     slot.textContent = finalChar;
                     clearInterval(interval);
                     
-                    // If this is the last character, animate the background and rhomboids
+                    // Check if it really showed the final character
                     if (index === charSlots.length - 1) {
                         setTimeout(finalAnimation, 300);
                     }
                 }
                 iterations++;
-            }, 50); // 50ms per character change
+            }, 50);
             
-        }, index * 100); // 100ms delay between characters
+        }, index * 100);
     });
 }
 
-// Function to create bubbles
 function createBubbles() {
-    // Clear existing bubbles
-    document.getElementById('bubble-layer-back').innerHTML = '';
-    document.getElementById('bubble-layer-middle').innerHTML = '';
-    document.getElementById('bubble-layer-front').innerHTML = '';
-    
-    // Create bubbles in each layer
     createLayerBubbles('bubble-layer-back', 20);
     createLayerBubbles('bubble-layer-middle', 15);
     createLayerBubbles('bubble-layer-front', 15);
@@ -1481,7 +1365,6 @@ function createBubbles() {
     }, 2500);
 }
 
-// Function to animate any SVG path
 function animatePath(pathId, duration = 1500, delay = 0) {
     setTimeout(() => {
         const pathElement = document.getElementById(pathId);
@@ -1535,7 +1418,7 @@ function createLayerBubbles(layerId, count) {
     let maxSize, minSize, moveDistance;
     
     if (layerId === 'bubble-layer-front') {
-        // Largest bubbles in front
+        // Big bubbles in front
         maxSize = window.innerWidth <= 480 ? 40 : 
                   window.innerWidth <= 768 ? 60 : 160;
         minSize = window.innerWidth <= 480 ? 20 : 
@@ -1588,11 +1471,7 @@ function createLayerBubbles(layerId, count) {
             bubble.style.top = `${Math.random() * 100}%`;
             bubble.style.left = `-${size}px`;
         }
-        
-        // Add to container
         layerEl.appendChild(bubble);
-        
-        // Make bubble visible initially
         setTimeout(() => {
             bubble.style.opacity = '1';
         }, 100);
@@ -1618,22 +1497,21 @@ function createLayerBubbles(layerId, count) {
                 bubble.classList.remove('move-in');
                 bubble.classList.add('float');
             }, 2500); // Wait for move-in transition to complete
-        }, 200 + (i * 50)); // Staggered start
+        }, 200 + (i * 50));
     }
 }
 
-// Final animation with gradient background and rhomboids - UPDATED to use class system
+// Final animation with gradient background and rhomboids
 function finalAnimation() {
     // Get the gradient overlay and activate it
     const gradientOverlay = document.querySelector('.gradient-overlay');
     gradientOverlay.classList.add('active');
     
-    // Create and animate bubbles
+    // Bubbles!
     createBubbles();
     
-    // Animate rhomboids in a wave-like motion using class system
+    // Animate rhomboids in a wave-like motion using a class because I learnt this time
     const rhomboids = document.querySelectorAll('.rhomboid:not(#return-button)');
-    console.log('Found rhomboids:', rhomboids.length); // Debug log
     
     rhomboids.forEach((rhomboid, index) => {
         // Set initial transform explicitly to ensure they start off-screen
@@ -1641,8 +1519,6 @@ function finalAnimation() {
         rhomboid.classList.remove('active', 'wave');
         
         setTimeout(() => {
-            console.log(`Animating rhomboid ${index}`); // Debug log
-            
             // Remove any inline transform and add active class
             rhomboid.style.transform = '';
             rhomboid.classList.add('active');
@@ -1650,43 +1526,33 @@ function finalAnimation() {
             // Add wave animation after the slide-in transition completes
             setTimeout(() => {
                 rhomboid.classList.add('wave');
-            }, 1500); // Wait for the slide-in to complete
+            }, 1500);
             
-            // Animate first rhomboid (home icon)
+            // Home icon
             if (index === 0) {
                 setTimeout(() => animatePath('home-outline-0'), 500);
             }
             
-            // Animate second rhomboid (rectangles)
+            // Rectangles
             if (index === 1) {
                 setTimeout(() => {
                     animatePathGroup(['left-rectangle', 'middle-rectangle', 'right-rectangle'], 500, 100, 0);
                 }, 500);
             }
             
-            // Animate third rhomboid
+            // Before time began there was the cube
             if (index === 2) {
                 setTimeout(() => animatePath('cube-outline'), 500);
             }
             
-            // Animate fourth rhomboid 
+            // Mail
             if (index === 3) {
                 setTimeout(() => animatePath('mail-outline'), 500);
             }
-        }, index * 400); // 400ms delay between each rhomboid
+        }, index * 400); 
     });
     
-    // Return button stays hidden (no active class by default)
-    const returnButton = document.getElementById('return-button');
-    if (returnButton) {
-        returnButton.style.transform = 'translateX(400px)';
-        returnButton.classList.remove('active');
-    }
-    
-    // Mark animation as complete so we can handle scroll
     animationComplete = true;
-    
-    // Show scroll indicator
     document.querySelector('.scroll-indicator').style.opacity = '1';
 }
 
@@ -1701,7 +1567,7 @@ window.addEventListener('scroll', () => {
     const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
     const windowHeight = window.innerHeight;
     
-    let newSection;
+    let newSection; // I'm aware that this is not the nicest way to do it but it works and I dont care
     if (scrollTop < windowHeight * 0.5) {
         newSection = 0; // Intro
     } else if (scrollTop < windowHeight * 1.5) {
@@ -1709,7 +1575,7 @@ window.addEventListener('scroll', () => {
     } else if (scrollTop < windowHeight * 2.5){
         newSection = 2; // Projects
     } else if (scrollTop < windowHeight * 3.5){
-        newSection = 3; // Gallery (Creations)
+        newSection = 3; // Creations
     } else {
         newSection = 4; // Contact
     }
@@ -1728,10 +1594,10 @@ window.addEventListener('scroll', () => {
     }, 150);
 });
 
-// Function to handle parallax effect for touch devices
+// Ahh maths, scary
 function handleTouchParallax() {
     if ('ontouchstart' in window) {
-        // For mobile devices, create gyroscope-based parallax
+        // Gyroscope-based parallax
         if (window.DeviceOrientationEvent) {
             window.addEventListener('deviceorientation', (e) => {
                 if (!parallaxEnabled) return;
@@ -1771,19 +1637,13 @@ function initializeCards() {
 function calculateCardSlotPositions() {
     const cardsContainer = document.querySelector('.cards-container');
     const containerWidth = cardsContainer.offsetWidth;
-    const cardWidth = 180; // Base card width
-    const cardGap = 20; // Gap between cards
-    
-    // Calculate center position of container
+    const cardWidth = 180;
+    const cardGap = 20;
+
     const containerCenter = containerWidth / 2;
-    
-    // Calculate total width of all cards + gaps
     const totalCardsWidth = (5 * cardWidth) + (4 * cardGap);
-    
-    // Calculate starting position (left edge of first card)
     const startX = containerCenter - (totalCardsWidth / 2);
-    
-    // Calculate position for each slot
+
     for (let i = 0; i < 5; i++) {
         cardSlotPositions[i] = startX + (i * (cardWidth + cardGap));
     }
@@ -1807,9 +1667,8 @@ function positionCardInSlot(card, slotIndex) {
     card.style.transition = 'all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
 }
 
-// Handle card click
 function handleCardClick(card) {
-    // Prevent rapid clicks
+    // Prevent spamming NEEDS A FIX THIS NEEDS A FIX
     if (card.classList.contains('processing')) return;
     card.classList.add('processing');
     
@@ -1842,10 +1701,7 @@ function handleCardClick(card) {
 function activateCard(card) {
     const currentOrder = parseInt(card.getAttribute('data-current-order'));
     
-    // Add active class for styling
     card.classList.add('active');
-    
-    // Shuffle cards: move all cards to the right of clicked card one position left
     shuffleCardsLeft(currentOrder);
     
     // Flip card after it reaches destination
@@ -1884,17 +1740,17 @@ function shuffleCardsLeft(activatedOrder) {
             const newOrder = currentOrder - 1;
             card.setAttribute('data-current-order', newOrder);
             
-            // Add staggered animation delay
+            // Stagger
             setTimeout(() => {
                 updateCardOrder(card, newOrder);
-            }, index * 50); // Staggered timing
+            }, index * 50);
         }
     });
 }
 function deactivateCard() {
     if (!activeCard) return;
     
-    // Reset the flip animation
+    // Reset the flip
     activeCard.querySelector('.card-inner').style.transform = '';
     
     // Remove active class
@@ -1939,19 +1795,18 @@ function moveCardToRightmost(card) {
     }, 1000);
 }
 function updateCardOrder(card, order) {
-    // Add moving class for animation
+    // Add moving class for mowing grass
     card.classList.add('moving');
     
-    // Set the new order
+    // Set the new (world) order
     card.style.order = order;
     
     // Remove moving class after animation completes
     setTimeout(() => {
         card.classList.remove('moving');
-    }, 800); // Match the CSS transition duration
+    }, 800);
 }
 
-// UPDATED handleImageClick function using class system
 function handleImageClick() {
     if (interfaceExpanded) return;
     
@@ -1959,12 +1814,10 @@ function handleImageClick() {
     
     // 1. Make cards go down out of frame
     const cards = document.querySelectorAll('.card');
-    const cardsContainer = document.querySelector('.cards-container');
     
     cards.forEach((card, index) => {
         setTimeout(() => {
-            card.style.transform = 'translateY(300px)';
-            card.style.opacity = '0';
+            card.classList.remove('scrolled')
         }, index * 50);
     });
     
@@ -2069,7 +1922,7 @@ function hideHorizontalCards() {
     }, maxDelay);
     horizontalCardsVisible = false;
 }
-
+// I don't remember this, resets stuff probably
 function resetInterface() {
     if (!interfaceExpanded) return;
     
@@ -2104,8 +1957,7 @@ function resetInterface() {
     const cards = document.querySelectorAll('.card');
     cards.forEach((card, index) => {
         setTimeout(() => {
-            card.style.transform = 'translateY(0)';
-            card.style.opacity = '1';
+            card.classList.add('scrolled')
         }, 600 + (index * 50));
     });
     
@@ -2114,10 +1966,6 @@ function resetInterface() {
         horizontalCardsVisible = false;
     }, 1200);
 }
-// Projects section variables
-let projectsVisible = false;
-let currentProject = 0;
-const totalProjects = 4;
 
 // Project navigation functions
 function nextProject() {
@@ -2181,8 +2029,6 @@ function updateCornerImages() {
     });
 }
 
-
-// Initialize everything
 window.addEventListener('resize', adjustSpaceWidth);
 adjustSpaceWidth();
 handleTouchParallax();
@@ -2202,7 +2048,7 @@ function snapToSection() {
 }
 
 function updateSectionDisplay() {
-    // Cache DOM elements to avoid repeated queries
+    // Cache DOM elements to avoid repeated queries cuz that sucks
     const elements = {
         animationContainer: document.getElementById('animation-container'),
         taglineContainer: document.getElementById('tagline-container'),
@@ -2227,7 +2073,7 @@ function updateSectionDisplay() {
             circularImage: { className: '' },
             contentBox: { className: '' },
             projectsSection: { className: '' },
-            galleryContainer: { className: '' }, // Make sure galleryContainer is targeted
+            galleryContainer: { className: '' },
             scrollIndicator: { opacity: '1' },
             cards: { action: 'hide' },
             gallery: { action: 'hide' },
@@ -2269,10 +2115,10 @@ function updateSectionDisplay() {
             circularImage: { className: '' },
             contentBox: { className: '' },
             projectsSection: { className: '' },
-            galleryContainer: { className: 'visible' }, // Show gallery container
+            galleryContainer: { className: 'visible' },
             scrollIndicator: { opacity: '0' },
             cards: { action: 'hide' },
-            gallery: { action: 'show' }, // This likely handles items within the gallery
+            gallery: { action: 'show' },
             projects: { action: 'hide' },
             contact: { action: 'hide' }
         },
@@ -2283,7 +2129,7 @@ function updateSectionDisplay() {
             circularImage: { className: '' },
             contentBox: { className: '' },
             projectsSection: { className: '' },
-            galleryContainer: { className: '' }, // Hide gallery container
+            galleryContainer: { className: '' },
             scrollIndicator: { opacity: '0' },
             cards: { action: 'hide' },
             gallery: { action: 'hide' },
@@ -2413,7 +2259,7 @@ function handleGalleryAnimation(elements, action) {
     }
 }
 function handleContactAnimation(elements, action) {
-    if (!elements.contactSection) return; // Guard clause
+    if (!elements.contactSection) return;
 
     if (action === 'show' && !elements.contactSection.classList.contains('visible')) {
         elements.contactSection.classList.add('visible');
@@ -2447,7 +2293,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 document.addEventListener('DOMContentLoaded', () => {
-    // --- Configuration ---
+    // --- Minecraft yay ---
     const imagesData = [
         { src: 'creations/barn.png', title: 'Little Countryside', date: '2025-02-29' },
         { src: 'creations/metro.png', title: 'A metro station', date: '2025-04-30' },
@@ -2465,16 +2311,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const itemBaseWidthVW = 60;
     const itemGapVW = 5;
 
-    // --- DOM Elements ---
+    // DOM Elements
     const galleryTrack = document.querySelector('.gallery-track');
     const slider = document.getElementById('gallery-slider');
     const galleryViewport = document.querySelector('.gallery-viewport');
 
-    // --- State ---
     let isSliderDragging = false;
     let rafId = null;
 
-    // --- Functions ---
+    // Some functions
     function initializeGallery() {
         galleryTrack.innerHTML = '';
 
@@ -2504,7 +2349,6 @@ document.addEventListener('DOMContentLoaded', () => {
             item.addEventListener('click', function() {
                 const clickedIndex = parseInt(this.dataset.index);
                 if (Math.abs(parseFloat(slider.value) - clickedIndex) > 0.001) {
-                    galleryTrack.style.transition = 'transform 0.55s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
                     slider.value = clickedIndex;
                     updateGalleryView(true);
                 }
@@ -2580,13 +2424,13 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('keydown', (e) => {
     if (!animationComplete) return;
 
-    // --- Rhythm Game specific key handling (should be at the top if it needs to override other behaviors) ---
+    // Rhythm Game specific key handling
     if (rhythmGameActive) {
         if (e.key === 'Escape') {
             e.preventDefault();
             closeRhythmGame();
             showHorizontalCards();
-            return; // Exit early as the event is handled
+            return;
         }
         if (e.key === ' ' && rhythmAudio) {
             e.preventDefault();
@@ -2601,16 +2445,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     rhythmAnimationFrame = null;
                 }
             }
-            return; // Exit early
+            return;
         }
-        // Note: Rhythm game's d,f,j,k keys are handled by handleRhythmKeyDown/Up
-        // If those are not stopping propagation or preventing default,
-        // and you don't want arrow keys to do anything else during rhythm game, add checks here.
     }
 
     let eventHandledInSection = false;
 
-    // --- Section-specific Left/Right Arrow Key Handling ---
     if (currentSection === 2) { // Projects Section
         if (e.key === 'ArrowLeft') {
             previousProject();
@@ -2621,15 +2461,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     } else if (currentSection === 3) { // Gallery Section
         const slider = document.getElementById('gallery-slider');
-        const galleryTrack = document.querySelector('.gallery-track'); // Ensure galleryTrack is accessible
+        const galleryTrack = document.querySelector('.gallery-track');
 
-        if (slider && galleryTrack) { // Make sure elements are found
+        if (slider && galleryTrack) {
             let currentValue = parseFloat(slider.value);
             const maxSliderValue = parseFloat(slider.max);
-            let targetValue = Math.round(currentValue); // Start with the current rounded value
+            let targetValue = Math.round(currentValue);
 
             if (e.key === 'ArrowLeft') {
-                targetValue -= 1; // Aim for the previous integer index
+                targetValue -= 1;
                 if (targetValue >= 0) {
                     // Apply transition for smooth track movement, similar to handleSliderSnap
                     galleryTrack.style.transition = 'transform 0.3s ease-out';
@@ -2638,7 +2478,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 eventHandledInSection = true;
             } else if (e.key === 'ArrowRight') {
-                targetValue += 1; // Aim for the next integer index
+                targetValue += 1;
                 if (targetValue <= maxSliderValue) {
                     galleryTrack.style.transition = 'transform 0.3s ease-out';
                     slider.value = targetValue;
@@ -2650,12 +2490,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (eventHandledInSection) {
-        e.preventDefault(); // Prevent default browser scroll if left/right arrows were used within a section
-        return; // Event handled, no further processing for section navigation
+        e.preventDefault();
+        return;
     }
-
-    // --- Default Section Navigation (Up/Down Arrows) ---
-    // This part will only be reached if left/right arrows were not handled by a specific section
+    // This part will only be reached if left/right arrows were not handled by something else
     if (e.key === 'ArrowUp' || e.key === 'PageUp') {
         e.preventDefault();
         if (currentSection > 0) {
@@ -2663,7 +2501,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     } else if (e.key === 'ArrowDown' || e.key === 'PageDown') {
         e.preventDefault();
-        // Assuming 4 is the last section index (0-Intro, 1-Home, 2-Projects, 3-Gallery, 4-Contact)
+        // 4 is the last section index, no more
         if (currentSection < 4) {
             goToSection(currentSection + 1);
         }
@@ -2680,16 +2518,15 @@ document.addEventListener('DOMContentLoaded', () => {
             slider.value = nearestIndex; // Set slider to the target
             updateGalleryView(true);     // Animate track and items to the snapped position
         } else {
-            // If already very close, ensure it's set to the exact integer
-            // and update view without new item animations (respecting ongoing track animation if any)
-            if (slider.value != nearestIndex) { // Ensure it's exactly the integer
+
+            if (slider.value != nearestIndex) {
                  slider.value = nearestIndex;
             }
             updateGalleryView(galleryTrack.style.transition !== 'none');
         }
     }
 
-    // --- Event Listeners ---
+    // Event Listeners
     slider.addEventListener('mousedown', () => {
         isSliderDragging = true;
         galleryTrack.style.transition = 'none';
@@ -2704,7 +2541,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('mouseup', () => {
         if (isSliderDragging) {
             isSliderDragging = false;
-            handleSliderSnap(); // Call snap logic when slider is released
+            handleSliderSnap();
         }
     });
 
@@ -2725,8 +2562,6 @@ document.addEventListener('DOMContentLoaded', () => {
         galleryTrack.style.transition = 'none';
         updateGalleryView(false);
     });
-
-    // --- Initialize ---
     initializeGallery();
 });
 // Start the animation
